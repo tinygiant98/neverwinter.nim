@@ -525,6 +525,13 @@ int32_t CScriptCompiler::GenerateParseTree()
 					//CScriptParseTreeNode *pNewNode1 = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_INTEGER_EXPRESSION,pNewNode0,NULL);
 					//ModifySRStackReturnTree(pNewNode1);
 					PushSRStack(CSCRIPTCOMPILER_GRAMMAR_BOOLEAN_EXPRESSION,0,1,pTopStackCurrentNode);
+
+					// TODO -- When an optional init statement was not provided, need to return the 
+					//		return node instead of the current node in 4,1.  How do we do that when 4,1
+					//		is already in the stack?  Need to change 4,1 to 4,2 if right_bracket is
+					//		encountererd here after the bool expression is evaluated.  Maybe check
+					//		for right bracket in 2,3, but that would require a return 0 in 4,3, but what
+					//		else would that affect?
 				}
 				else
 				{
@@ -540,7 +547,18 @@ int32_t CScriptCompiler::GenerateParseTree()
 			if (nTopStackRule == 2 && nTopStackTerm == 3)
 			{
 				pTopStackCurrentNode->pLeft = pTopStackReturnNode;
-				PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,4,1,pTopStackCurrentNode);
+
+				if (m_nTokenStatus == CSCRIPTCOMPILER_TOKEN_RIGHT_BRACKET)
+				{
+					PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,4,4,pTopStackCurrentNode);
+				}
+				else
+				{
+					PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,4,1,pTopStackCurrentNode);
+					//PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,2,2,pTopStackCurrentNode);
+				}
+
+				//PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,4,1,pTopStackCurrentNode);
 				PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,2,2,pTopStackCurrentNode);
 			}
 			// Rule 3:
@@ -594,6 +612,10 @@ int32_t CScriptCompiler::GenerateParseTree()
 				{
 					ModifySRStackReturnTree(pTopStackReturnNode);
 				}
+			}
+			if (nTopStackRule == 4 && nTopStackTerm == 4)
+			{
+				ModifySRStackReturnTree(pTopStackReturnNode);
 			}
 			break;
 
