@@ -484,7 +484,7 @@ int32_t CScriptCompiler::GenerateParseTree()
 			// End the stack processing for this rule.
 			if (nTopStackRule == 1 && nTopStackTerm <= 2)
 			{ // COMPOUND_STATEMENT 2,1
-				if (nTopStackTerm == 2 && m_nTokenStatus == CSCRIPTCOMPILER_TOKEN_RIGHT_BRACKET)
+				if (m_nTokenStatus == CSCRIPTCOMPILER_TOKEN_RIGHT_BRACKET && nTopStackTerm == 1)
 				{
 					ModifySRStackReturnTree(pTopStackReturnNode);
 				}
@@ -577,7 +577,6 @@ int32_t CScriptCompiler::GenerateParseTree()
 			if (nTopStackRule == 4 && nTopStackTerm == 2)
 			{ 
 				PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,4,3,NULL);
-				//PushSRStack(CSCRIPTCOMPILER_GRAMMAR_EXPRESSION,0,0,NULL);
 				PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_A_STATEMENT,0,1,NULL);
 			}
 			if (nTopStackRule == 4 && nTopStackTerm == 3)
