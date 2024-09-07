@@ -1,6 +1,28 @@
+#include "util_i_color"
+
 void m(string s)
 {
     SendMessageToPC(GetFirstPC(), s);
+}
+
+void _if()
+{
+
+}
+
+void _while()
+{
+
+}
+
+void _switch()
+{
+
+}
+
+void _for()
+{
+
 }
 
 void main()
@@ -88,11 +110,17 @@ void main()
     {
         int x, y, z;
         object oPC = GetFirstPC();
+//        if (int x = 1; x == 1)
+//        {
+//            SendMessageToPC(oPC, "  PASS (IF): x == 1");
+//        }
         //for (SendMessageToPC(oPC, "Starting For Loop"); x < 5; SendMessageToPC(oPC, "Iterating For Loop"), x++)
-        for (x = 7, y = 6; z > 6; x++)
-        {
-            SendMessageToPC(oPC, "Within For Loop");
-        }
+//`       for (SendMessageToPC(oPC, "Loop Start"), y = 6,z = 10; z > 6; SendMessageToPC(oPC, "End Loop"), x++)
+//       {
+//           SendMessageToPC(oPC, "  Within For Loop");
+//           z--;
+//
+//        }
     }
     // Case 4: negated
 
