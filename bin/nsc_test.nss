@@ -1,29 +1,29 @@
 #include "util_i_color"
 
-void m(string s)
+void m(string s, int nColor = COLOR_CYAN)
 {
-    SendMessageToPC(GetFirstPC(), s);
+   SendMessageToPC(GetFirstPC(), HexColorString(s, nColor));
 }
 
 void _if()
-{
+{}
 
-}
+
 
 void _while()
-{
+{}
 
-}
+
 
 void _switch()
-{
+{}
 
-}
+
 
 void _for()
-{
+{}
 
-}
+
 
 void main()
 {
@@ -108,12 +108,12 @@ void main()
 */
     // Case 11: uncommon, but legal, constructs
     {
-        int x, y, z;
-        object oPC = GetFirstPC();
-//        if (int x = 1; x == 1)
-//        {
-//            SendMessageToPC(oPC, "  PASS (IF): x == 1");
-//        }
+//       int x, y, z;
+//       object oPC = GetFirstPC();
+        if (int x = 1; x == 1)
+        {
+            m("  PASS (IF): x == 1");
+        }
         //for (SendMessageToPC(oPC, "Starting For Loop"); x < 5; SendMessageToPC(oPC, "Iterating For Loop"), x++)
 //`       for (SendMessageToPC(oPC, "Loop Start"), y = 6,z = 10; z > 6; SendMessageToPC(oPC, "End Loop"), x++)
 //       {
