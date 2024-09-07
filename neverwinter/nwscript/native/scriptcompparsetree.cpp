@@ -452,11 +452,158 @@ int32_t CScriptCompiler::GenerateParseTree()
 			//  This rule has the potential to be abused in the future for comma
 			//	operator-like functionality.
 
-		case CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP:
+		//case CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP:
 		
-			// Term 1: Process initialization statement group
+		// FROM PREVIOUS COMMIT:
+
+		case CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP:
+			// 0,0
+			// This is the entry point for the initialization statement group/
+			//	expression list.  In a for statement, this is mandatory; in all
+			//	other constructs, this is an optional section.  We want to co-opt
+			//	the STATEMENT_LIST construct, essentially copying it and rebuilding
+			//	it here to avoid the WITHIN_A_STATEMENT(11,2) rule that seems to
+			//  cause all the problems with attempting to use WITHIN_A_STATEMENT
+			//  in this context.  This is very much like the way COMPOUND_STATEMENT
+			//	works.
+			// Rule 0:
+			// Term 1: Called from the initialization section of a loop or conditional
+			//	construct.  This can either be a mandatory expression list (such as
+			//	within a for loop), or an optional expression list (such as in a while).
 			if (nTopStackRule == 0 && nTopStackTerm == 1)
 			{
+				PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,1,1,NULL);
+				PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,2,2,NULL);
+			}
+			// Term 2: Called from the increment section
+			if (nTopStackRule == 0 && nTopStackTerm == 2)
+			{
+				PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,1,2,NULL);
+				PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,3,2,NULL);
+			}
+			// End the stack processing for this rule.
+			if (nTopStackRule == 1 && nTopStackTerm <= 2)
+			{ // COMPOUND_STATEMENT 2,1
+				if (nTopStackTerm == 2 && m_nTokenStatus == CSCRIPTCOMPILER_TOKEN_RIGHT_BRACKET)
+				{
+					ModifySRStackReturnTree(pTopStackReturnNode);
+				}
+				else
+				{
+					CScriptParseTreeNode *pNewNode = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_STATEMENT_LIST,pTopStackReturnNode,NULL);
+					ModifySRStackReturnTree(pNewNode);
+				}
+			}
+			// Rule 2:
+			// This is the construct for the "list" portion of the statement list, which
+			//  implements functionality like STATEMENT_LIST.  We're keeping it within this
+			//  case for now, though it may need to be split out to make the code like the
+			//	legacy code in this parser.  This rule is for statement lists that either
+			//	end in a semi-colon (such as an init list for a for loop) or that are
+			//	optionally terminated with a semi-colon, such as the init lists in a while,
+			//	if, switch, etc.
+			
+			if (nTopStackRule == 2 && nTopStackTerm == 2)
+			{ // WITHIN_STATEMENT_LIST 0,0
+				// Multiple statements in a statement group are separated with a comma,
+				//	but the group ends with a semi-colon token.  So if we're reached that,
+				//	let's end the loop here and pass up the resulting node tree
+				if (m_nTokenStatus == CSCRIPTCOMPILER_TOKEN_SEMICOLON)
+				{
+					ModifySRStackReturnTree(pTopStackReturnNode);
+				}
+				// We were expecting an expression list, but we got a closing bracket instead,
+				//	which implies that the expression list was empty, no semi-colon was present,
+				//  and the resulting node stack should be an integer return type (boolean)
+				else if (m_nTokenStatus == CSCRIPTCOMPILER_TOKEN_RIGHT_BRACKET)
+				{
+					// If there's a RIGHT_BRACKET here, it likely means that we looked for
+					//	a statement list, but it wasn't found; so the returned node *should*
+					//	be a boolean.  We need to check that it is a boolean and return the
+					//	node stack if it is, otherwise, return an error.
+					//CScriptParseTreeNode *pNewNode0 = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_NON_VOID_EXPRESSION,pTopStackCurrentNode->pLeft,NULL);
+					//CScriptParseTreeNode *pNewNode1 = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_INTEGER_EXPRESSION,pNewNode0,NULL);
+					//ModifySRStackReturnTree(pNewNode1);
+					PushSRStack(CSCRIPTCOMPILER_GRAMMAR_BOOLEAN_EXPRESSION,0,1,pTopStackCurrentNode);
+				}
+				else
+				{
+					CScriptParseTreeNode *pNewNode = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_STATEMENT,NULL,NULL);
+					if (pTopStackCurrentNode != NULL)
+					{
+						pTopStackCurrentNode->pRight = pNewNode;
+					}
+					PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,2,3,pNewNode);
+					PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,4,2,NULL);
+				}
+			}
+			if (nTopStackRule == 2 && nTopStackTerm == 3)
+			{
+				pTopStackCurrentNode->pLeft = pTopStackReturnNode;
+				PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,4,1,pTopStackCurrentNode);
+				PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,2,2,pTopStackCurrentNode);
+			}
+			// Rule 3:
+			// This rule is for statement lists that are terminated with a RIGHT_BRACKET, such
+			//	as statement lists that are part of the increment portion of a for loop.
+			if (nTopStackRule == 3 && nTopStackTerm == 2)
+			{
+				if (m_nTokenStatus == CSCRIPTCOMPILER_TOKEN_RIGHT_BRACKET)
+				{
+					ModifySRStackReturnTree(pTopStackReturnNode);
+				}
+				else
+				{
+					CScriptParseTreeNode *pNewNode = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_STATEMENT,NULL,NULL);
+					if (pTopStackCurrentNode != NULL)
+					{
+						pTopStackCurrentNode->pRight = pNewNode;
+					}
+					PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,3,4,pNewNode);
+					PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,4,2,NULL);
+				}
+			}
+			if (nTopStackRule == 3 && nTopStackTerm == 4)
+			{
+				pTopStackCurrentNode->pLeft = pTopStackReturnNode;
+				PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,4,1,pTopStackCurrentNode);
+				PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,3,2,pTopStackCurrentNode);	
+			}
+			// Term 4: Misc Processing
+			if (nTopStackRule == 4 && nTopStackTerm == 1)
+			{
+				ModifySRStackReturnTree(pTopStackCurrentNode);
+			}
+			if (nTopStackRule == 4 && nTopStackTerm == 2)
+			{ 
+				PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,4,3,NULL);
+				//PushSRStack(CSCRIPTCOMPILER_GRAMMAR_EXPRESSION,0,0,NULL);
+				PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_A_STATEMENT,0,1,NULL);
+			}
+			if (nTopStackRule == 4 && nTopStackTerm == 3)
+			{ // WITHIN_A_STATEMENT 11,2
+				if (m_nTokenStatus == CSCRIPTCOMPILER_TOKEN_COMMA)
+				{
+					ModifySRStackReturnTree(pTopStackReturnNode);
+					return 0;
+				}
+				else if (m_nTokenStatus == CSCRIPTCOMPILER_TOKEN_SEMICOLON)
+				{
+					ModifySRStackReturnTree(pTopStackReturnNode);
+				}
+				else if (m_nTokenStatus == CSCRIPTCOMPILER_TOKEN_RIGHT_BRACKET)
+				{
+					ModifySRStackReturnTree(pTopStackReturnNode);
+				}
+			}
+			break;
+
+	// END PREVIOUS COMMIT
+
+/*
+			// Term 1: Process initialization statement group
+			if (nTopStackRule == 0 && nTopStackTerm == 1)
+			{ //COMPOUND_LIST 0,0
 				PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,1,1,NULL);
 				PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,2,2,NULL);
 			}
@@ -468,7 +615,7 @@ int32_t CScriptCompiler::GenerateParseTree()
 			}
 
 			if (nTopStackRule == 1 && nTopStackTerm == 1)
-			{
+			{ //COMPOUND_LIST 2,1
 				if (m_nTokenStatus == CSCRIPTCOMPILER_TOKEN_RIGHT_BRACKET)
 				{	
 					ModifySRStackReturnTree(pTopStackReturnNode);
@@ -491,7 +638,7 @@ int32_t CScriptCompiler::GenerateParseTree()
 			//  If a `)` is present, an initialization statement group doesn't
 			//	 exist; assume the statement group is the condition.
 			if (nTopStackRule == 2 && nTopStackTerm == 2)
-			{
+			{ //STATEMENT_LIST 0,0
 				if (m_nTokenStatus == CSCRIPTCOMPILER_TOKEN_SEMICOLON)
 				{
 					ModifySRStackReturnTree(pTopStackReturnNode);
@@ -509,7 +656,7 @@ int32_t CScriptCompiler::GenerateParseTree()
 						pTopStackCurrentNode->pRight = pNewNode;
 					}
 					PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,2,4,pNewNode);
-					PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,4,3,NULL);
+					//PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,4,3,NULL);
 					PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_A_STATEMENT,0,1,NULL);
 				}
 
@@ -518,13 +665,24 @@ int32_t CScriptCompiler::GenerateParseTree()
 			//	- Attach the statement's node tree to the statement group
 			//  - Check for additional statements
 			if (nTopStackRule == 2 && nTopStackTerm == 4)
-			{
+			{ //STATEMENT_LIST 1,1
 				pTopStackCurrentNode->pLeft = pTopStackReturnNode;
-				//PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,4,3,pTopStackCurrentNode);
+				PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,2,5,pTopStackCurrentNode);
 				PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,2,2,pTopStackCurrentNode);
 				//return 0;
 			}
 
+			if (nTopStackRule == 2 && nTopStackTerm == 5)
+			{
+				PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,4,3,pTopStackCurrentNode);
+				PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,2,6,pTopStackCurrentNode);
+
+			}
+
+			if (nTopStackRule == 2 && nTopStackTerm == 6)
+			{
+				ModifySRStackReturnTree(pTopStackCurrentNode);
+			}
 			// Rule 3: statement-group )
 			// Term 2: Build increment statement group node tree
 			//	- If a `)` is present, increment statement group is complete
@@ -583,7 +741,7 @@ int32_t CScriptCompiler::GenerateParseTree()
 			}
 
 			break;
-
+*/
 			///////////////////////////////////////////////////////////////////////////////
 			// case 35:
 			// constant:
