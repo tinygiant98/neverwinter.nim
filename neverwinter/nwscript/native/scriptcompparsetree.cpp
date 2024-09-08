@@ -435,8 +435,8 @@ int32_t CScriptCompiler::GenerateParseTree()
 			// case 36:
 			// statement-group:
 			// (1) statement-group 
-			// (2) statement-group(opt) ;
-			// (3) statement-group )
+			// (2) within-a-statement , statement-group(opt) ; boolean-expression(opt) )
+			// (3) within-a-statement , statement-group(opt) )
 			///////////////////////////////////////////////////////////////////////////////
 
 			// STATEMENT_GROUP:
@@ -451,10 +451,6 @@ int32_t CScriptCompiler::GenerateParseTree()
 			// Rule 3 parses the for loop increment statement group.
 			//  This rule has the potential to be abused in the future for comma
 			//	operator-like functionality.
-
-		//case CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP:
-		
-		// FROM PREVIOUS COMMIT:
 
 		case CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP:
 			// 0,0
@@ -481,7 +477,6 @@ int32_t CScriptCompiler::GenerateParseTree()
 				PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,1,2,NULL);
 				PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,3,2,NULL);
 			}
-			// End the stack processing for this rule.
 			if (nTopStackRule == 1 && nTopStackTerm <= 2)
 			{ // COMPOUND_STATEMENT 2,1
 				if (m_nTokenStatus == CSCRIPTCOMPILER_TOKEN_RIGHT_BRACKET && nTopStackTerm == 1)
@@ -517,24 +512,20 @@ int32_t CScriptCompiler::GenerateParseTree()
 				//  and the resulting node stack should be an integer return type (boolean)
 				else if (m_nTokenStatus == CSCRIPTCOMPILER_TOKEN_RIGHT_BRACKET)
 				{
-					// If there's a RIGHT_BRACKET here, it likely means that we looked for
-					//	a statement list, but it wasn't found; so the returned node *should*
-					//	be a boolean.  We need to check that it is a boolean and return the
-					//	node stack if it is, otherwise, return an error.
-					//CScriptParseTreeNode *pNewNode0 = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_NON_VOID_EXPRESSION,pTopStackCurrentNode->pLeft,NULL);
-					//CScriptParseTreeNode *pNewNode1 = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_INTEGER_EXPRESSION,pNewNode0,NULL);
-					//ModifySRStackReturnTree(pNewNode1);
-					PushSRStack(CSCRIPTCOMPILER_GRAMMAR_BOOLEAN_EXPRESSION,0,1,pTopStackCurrentNode);
+					// If we've found a RIGHT_BRACKET here, the initialization statement group
+					//	was not found (no ;), so the returned expression should be the condition
+					//	statement.  Check that only one statement was passed and send it to
+					//	BOOLEAN_EXPRESSION for processing and node tree building.
 
-					// TODO -- When an optional init statement was not provided, need to return the 
-					//		return node instead of the current node in 4,1.  How do we do that when 4,1
-					//		is already in the stack?  Need to change 4,1 to 4,2 if right_bracket is
-					//		encountererd here after the bool expression is evaluated.  Maybe check
-					//		for right bracket in 2,3, but that would require a return 0 in 4,3, but what
-					//		else would that affect?
+					// ISSUE: the entire node tree isn't passed back here, so we'll need
+					//	to find it and return it here so we can check to see if there's
+					//	more than one statement being passed to BOOLEAN_EXPRESSION.  If there
+					//	is, it'll return a relatively useless error on compilation.
+					PushSRStack(CSCRIPTCOMPILER_GRAMMAR_BOOLEAN_EXPRESSION,0,1,pTopStackCurrentNode);
 				}
 				else
 				{
+					// TODO move this into a separate term so duplicate code in 3,2 can be removed.
 					CScriptParseTreeNode *pNewNode = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_STATEMENT,NULL,NULL);
 					if (pTopStackCurrentNode != NULL)
 					{
@@ -547,18 +538,16 @@ int32_t CScriptCompiler::GenerateParseTree()
 			if (nTopStackRule == 2 && nTopStackTerm == 3)
 			{
 				pTopStackCurrentNode->pLeft = pTopStackReturnNode;
-
 				if (m_nTokenStatus == CSCRIPTCOMPILER_TOKEN_RIGHT_BRACKET)
 				{
-					PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,4,4,pTopStackCurrentNode);
+					// TODO Don't need pTopStackCurrentNode on this call...
+					PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,4,5,pTopStackCurrentNode);
 				}
 				else
 				{
-					PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,4,1,pTopStackCurrentNode);
-					//PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,2,2,pTopStackCurrentNode);
+					PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,4,4,pTopStackCurrentNode);
 				}
 
-				//PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,4,1,pTopStackCurrentNode);
 				PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,2,2,pTopStackCurrentNode);
 			}
 			// Rule 3:
@@ -584,21 +573,17 @@ int32_t CScriptCompiler::GenerateParseTree()
 			if (nTopStackRule == 3 && nTopStackTerm == 4)
 			{
 				pTopStackCurrentNode->pLeft = pTopStackReturnNode;
-				PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,4,1,pTopStackCurrentNode);
+				PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,4,4,pTopStackCurrentNode);
 				PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,3,2,pTopStackCurrentNode);	
 			}
 			// Term 4: Misc Processing
-			if (nTopStackRule == 4 && nTopStackTerm == 1)
-			{
-				ModifySRStackReturnTree(pTopStackCurrentNode);
-			}
 			if (nTopStackRule == 4 && nTopStackTerm == 2)
 			{ 
 				PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_STATEMENT_GROUP,4,3,NULL);
 				PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_A_STATEMENT,0,1,NULL);
 			}
 			if (nTopStackRule == 4 && nTopStackTerm == 3)
-			{ // WITHIN_A_STATEMENT 11,2
+			{
 				if (m_nTokenStatus == CSCRIPTCOMPILER_TOKEN_COMMA)
 				{
 					ModifySRStackReturnTree(pTopStackReturnNode);
@@ -613,9 +598,16 @@ int32_t CScriptCompiler::GenerateParseTree()
 					ModifySRStackReturnTree(pTopStackReturnNode);
 				}
 			}
-			if (nTopStackRule == 4 && nTopStackTerm == 4)
+			if (nTopStackRule == 4 && (nTopStackTerm >= 4 && nTopStackTerm <= 5))
 			{
-				ModifySRStackReturnTree(pTopStackReturnNode);
+				if (nTopStackTerm == 4)
+				{
+					ModifySRStackReturnTree(pTopStackCurrentNode);
+				}
+				else if (nTopStackTerm == 5)
+				{
+					ModifySRStackReturnTree(pTopStackReturnNode);
+				}
 			}
 			break;
 
