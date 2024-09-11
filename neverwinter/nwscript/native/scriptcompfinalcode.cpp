@@ -3548,7 +3548,7 @@ int32_t CScriptCompiler::PostVisitGenerateCode(CScriptParseTreeNode *pNode)
 //			//int32_t c;
 //			--m_nStackCurrentDepth;
 //		}
-//
+
 		// At this point we should have had the same state that we saved earlier.  If we
 		// don't, there's a big problem, and we should be alerted to it.  This is really
 		// a compiler error, rather than something the user has done.

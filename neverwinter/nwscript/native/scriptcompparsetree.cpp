@@ -2993,7 +2993,8 @@ int32_t CScriptCompiler::GenerateParseTree()
 			{
 				if (m_nTokenStatus == CSCRIPTCOMPILER_TOKEN_LEFT_BRACKET)
 				{
-					CScriptParseTreeNode *pNewNode0 = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_STATEMENT_NO_DEBUG,NULL,pTopStackCurrentNode);
+					//CScriptParseTreeNode *pNewNode0 = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_STATEMENT_NO_DEBUG,NULL,pTopStackCurrentNode);
+					CScriptParseTreeNode *pNewNode0 = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_STATEMENT,NULL,pTopStackCurrentNode);
 					CScriptParseTreeNode *pNewNode1 = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_COMPOUND_STATEMENT,pNewNode0,NULL);
 					PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_A_STATEMENT,5,3,pNewNode1);
 					return 0;
