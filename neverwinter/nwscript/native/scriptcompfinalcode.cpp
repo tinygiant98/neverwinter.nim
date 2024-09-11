@@ -3501,11 +3501,12 @@ int32_t CScriptCompiler::PostVisitGenerateCode(CScriptParseTreeNode *pNode)
 		// Since the switch_block is a super-special statement that adds a
 		//	fancy variable to the stack, we need to decrement the stack
 		//	counter since by now that variable should have been removed.
-		if (pNode->pLeft && pNode->pLeft->pRight &&
-			pNode->pLeft->pRight->nOperation == CSCRIPTCOMPILER_OPERATION_SWITCH_BLOCK)
-		{
-			--m_nStackCurrentDepth;
-		}
+//		if (pNode->pLeft && pNode->pLeft->pRight &&
+//			pNode->pLeft->pRight->nOperation == CSCRIPTCOMPILER_OPERATION_SWITCH_BLOCK)
+//		{
+//			//int32_t c;
+//			--m_nStackCurrentDepth;
+//		}
 
 		// We keep track of all of the variables added at this recursion level, and
 		// peel them off one by one.  This is actually done within the script itself
@@ -3541,6 +3542,13 @@ int32_t CScriptCompiler::PostVisitGenerateCode(CScriptParseTreeNode *pNode)
 			EmitModifyStackPointer(nStackModifier);
 		}
 
+//		if (pNode->pLeft && pNode->pLeft->pRight &&
+//			pNode->pLeft->pRight->nOperation == CSCRIPTCOMPILER_OPERATION_SWITCH_BLOCK)
+//		{
+//			//int32_t c;
+//			--m_nStackCurrentDepth;
+//		}
+//
 		// At this point we should have had the same state that we saved earlier.  If we
 		// don't, there's a big problem, and we should be alerted to it.  This is really
 		// a compiler error, rather than something the user has done.
