@@ -3542,12 +3542,12 @@ int32_t CScriptCompiler::PostVisitGenerateCode(CScriptParseTreeNode *pNode)
 			EmitModifyStackPointer(nStackModifier);
 		}
 
-//		if (pNode->pLeft && pNode->pLeft->pRight &&
-//			pNode->pLeft->pRight->nOperation == CSCRIPTCOMPILER_OPERATION_SWITCH_BLOCK)
-//		{
-//			//int32_t c;
-//			--m_nStackCurrentDepth;
-//		}
+		if (pNode->pLeft && pNode->pLeft->pRight &&
+			pNode->pLeft->pRight->nOperation == CSCRIPTCOMPILER_OPERATION_SWITCH_BLOCK)
+		{
+			//int32_t c;
+			--m_nStackCurrentDepth;
+		}
 
 		// At this point we should have had the same state that we saved earlier.  If we
 		// don't, there's a big problem, and we should be alerted to it.  This is really
