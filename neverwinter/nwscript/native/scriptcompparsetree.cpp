@@ -2995,7 +2995,9 @@ int32_t CScriptCompiler::GenerateParseTree()
 				{
 					//CScriptParseTreeNode *pNewNode0 = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_STATEMENT_NO_DEBUG,NULL,pTopStackCurrentNode);
 					CScriptParseTreeNode *pNewNode0 = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_STATEMENT_NO_DEBUG,pTopStackCurrentNode,NULL);
-					CScriptParseTreeNode *pNewNode2 = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_STATEMENT_LIST,pNewNode0,NULL);
+					CScriptParseTreeNode *pNewNode4 = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_STATEMENT_LIST,NULL,NULL);
+					CScriptParseTreeNode *pNewNode3 = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_STATEMENT,pNewNode4,pNewNode0);
+					CScriptParseTreeNode *pNewNode2 = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_STATEMENT_LIST,pNewNode3,NULL);
 					CScriptParseTreeNode *pNewNode1 = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_COMPOUND_STATEMENT,pNewNode2,NULL);
 					PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_A_STATEMENT,5,3,pNewNode1);
 					return 0;
@@ -3031,7 +3033,14 @@ int32_t CScriptCompiler::GenerateParseTree()
 			{
 				if (m_nTokenStatus == CSCRIPTCOMPILER_TOKEN_SEMICOLON)
 				{
-					pTopStackCurrentNode->pLeft->pLeft = pTopStackReturnNode;
+					if (pTopStackReturnNode->nOperation == CSCRIPTCOMPILER_OPERATION_STATEMENT_LIST)
+					{
+						pTopStackCurrentNode->pLeft->pLeft->pLeft = pTopStackReturnNode;
+					}
+					else
+					{
+						pTopStackCurrentNode->pLeft->pLeft->pLeft->pLeft = pTopStackReturnNode;
+					}
 					PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_A_STATEMENT,5,4,pTopStackCurrentNode);
 					PushSRStack(CSCRIPTCOMPILER_GRAMMAR_BOOLEAN_EXPRESSION,0,0,NULL);
 					return 0;
@@ -3039,13 +3048,14 @@ int32_t CScriptCompiler::GenerateParseTree()
 				else if (m_nTokenStatus == CSCRIPTCOMPILER_TOKEN_RIGHT_BRACKET)
 				{
 					CScriptParseTreeNode *pNewNode = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_SWITCH_CONDITION,pTopStackReturnNode,NULL);
-					//pTopStackCurrentNode->pLeft->pLeft->pRight->pLeft = pNewNode;
-					pTopStackCurrentNode->pLeft->pLeft->pLeft->pLeft = pNewNode;
+					pTopStackCurrentNode->pLeft->pLeft->pRight->pLeft->pLeft = pNewNode;
+					//pTopStackCurrentNode->pLeft->pLeft->pLeft->pLeft = pNewNode;
 					// MGB - February 5, 2003 - Removed pTopStackReturnNode from left branch of this
 					// tree node, since it didn't really make a lot of sense.
 					CScriptParseTreeNode *pNewNode2 = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_STATEMENT_NO_DEBUG,NULL,NULL);
 					//pTopStackCurrentNode->pLeft->pLeft->pRight->pRight = pNewNode2;
-					pTopStackCurrentNode->pLeft->pLeft->pLeft->pRight = pNewNode2;
+					//pTopStackCurrentNode->pLeft->pLeft->pLeft->pRight = pNewNode2;
+					pTopStackCurrentNode->pLeft->pLeft->pRight->pLeft->pRight = pNewNode2;
 					PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_A_STATEMENT,5,5,pTopStackCurrentNode);
 					PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_A_STATEMENT,0,0,NULL);
 					return 0;
@@ -3063,7 +3073,8 @@ int32_t CScriptCompiler::GenerateParseTree()
 				}
 
 				//pTopStackCurrentNode->pLeft->pLeft->pRight->pRight->pLeft = pTopStackReturnNode;
-				pTopStackCurrentNode->pLeft->pLeft->pLeft->pRight->pLeft = pTopStackReturnNode;
+				//pTopStackCurrentNode->pLeft->pLeft->pLeft->pRight->pLeft = pTopStackReturnNode;
+				pTopStackCurrentNode->pLeft->pLeft->pRight->pLeft->pRight->pLeft = pTopStackReturnNode;
 				ModifySRStackReturnTree(pTopStackCurrentNode);
 			}
 
@@ -3446,11 +3457,18 @@ int32_t CScriptCompiler::GenerateParseTree()
 				CScriptParseTreeNode *pNewNode2 = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_STATEMENT,pNewNode,NULL);
 				CScriptParseTreeNode *pNewNode3 = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_STATEMENT_LIST,pNewNode2,NULL);
 
+				//if (pTopStackCurrentNode && pTopStackCurrentNode->pLeft && 
+				//	(pTopStackCurrentNode->pLeft->nOperation == CSCRIPTCOMPILER_OPERATION_FOR_BLOCK ||
+				//	 pTopStackCurrentNode->pLeft->pRight->nOperation == CSCRIPTCOMPILER_OPERATION_IF_BLOCK ||
+				//	 pTopStackCurrentNode->pLeft->pRight->nOperation == CSCRIPTCOMPILER_OPERATION_SWITCH_BLOCK ||
+				//	 pTopStackCurrentNode->pLeft->pRight->nOperation == CSCRIPTCOMPILER_OPERATION_WHILE_BLOCK))
 				if (pTopStackCurrentNode && pTopStackCurrentNode->pLeft && 
-					(pTopStackCurrentNode->pLeft->nOperation == CSCRIPTCOMPILER_OPERATION_FOR_BLOCK ||
-					 pTopStackCurrentNode->pLeft->pRight->nOperation == CSCRIPTCOMPILER_OPERATION_IF_BLOCK ||
-					 pTopStackCurrentNode->pLeft->pRight->nOperation == CSCRIPTCOMPILER_OPERATION_SWITCH_BLOCK ||
-					 pTopStackCurrentNode->pLeft->pRight->nOperation == CSCRIPTCOMPILER_OPERATION_WHILE_BLOCK))
+					((pTopStackCurrentNode->pLeft->nOperation == CSCRIPTCOMPILER_OPERATION_FOR_BLOCK) ||
+					(pTopStackCurrentNode->pLeft->pRight && 
+					(pTopStackCurrentNode->pLeft->pRight->nOperation == CSCRIPTCOMPILER_OPERATION_IF_BLOCK ||
+					 pTopStackCurrentNode->pLeft->pRight->nOperation == CSCRIPTCOMPILER_OPERATION_WHILE_BLOCK)) ||
+					(pTopStackCurrentNode->pLeft->pLeft && pTopStackCurrentNode->pLeft->pLeft->pRight && pTopStackCurrentNode->pLeft->pLeft->pRight->pLeft &&
+					 pTopStackCurrentNode->pLeft->pLeft->pRight->pLeft->nOperation == CSCRIPTCOMPILER_OPERATION_SWITCH_BLOCK)))
 				{
 					PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_A_STATEMENT,10,4,pNewNode3);
 				}
