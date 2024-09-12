@@ -3014,7 +3014,21 @@ int32_t CScriptCompiler::GenerateParseTree()
 				// directly to the returned parse tree without linking the operation_statement in place.
 				//pTopStackCurrentNode->pLeft->pRight->pRight->pRight = pNewNode2;
 				// IF_CHOICE -> pRight (else)
-				pTopStackCurrentNode->pLeft->pLeft->pRight->pRight->pRight->pRight = pNewNode2;
+				if (pNewNode2->pLeft->nOperation == CSCRIPTCOMPILER_OPERATION_COMPOUND_STATEMENT)
+				{
+					pTopStackCurrentNode->pLeft->pLeft->pRight->pRight->pRight->pRight = pNewNode2;
+				}
+				else
+				{
+					CScriptParseTreeNode *pNewNode3 = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_STATEMENT_LIST,pNewNode2,NULL);
+					CScriptParseTreeNode *pNewNode4 = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_COMPOUND_STATEMENT,pNewNode3,NULL);
+					CScriptParseTreeNode *pNewNode5 = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_STATEMENT_NO_DEBUG,pNewNode4,NULL);
+					pTopStackCurrentNode->pLeft->pLeft->pRight->pRight->pRight->pRight = pNewNode5;
+				}
+
+
+
+				//pTopStackCurrentNode->pLeft->pLeft->pRight->pRight->pRight->pRight = pNewNode2;
 				ModifySRStackReturnTree(pTopStackCurrentNode);
 			}
 
