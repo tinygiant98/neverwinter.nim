@@ -323,6 +323,8 @@ CScriptParseTreeNode *CScriptCompiler::DuplicateScriptParseTree(CScriptParseTree
 	pNewNode->nOperation     = pNode->nOperation;
 	pNewNode->nIntegerData   = pNode->nIntegerData;
 	pNewNode->nIntegerData2  = pNode->nIntegerData2;
+	pNewNode->nIntegerData3  = pNode->nIntegerData3;
+	pNewNode->nIntegerData4  = pNode->nIntegerData4;
 	pNewNode->fFloatData     = pNode->fFloatData;
 	pNewNode->fVectorData[0] = pNode->fVectorData[0];
 	pNewNode->fVectorData[1] = pNode->fVectorData[1];
@@ -2861,6 +2863,7 @@ int32_t CScriptCompiler::GenerateParseTree()
 					CScriptParseTreeNode *pNewNode2 = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_STATEMENT,pNewNode3,pNewNode4);
 					CScriptParseTreeNode *pNewNode1 = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_STATEMENT_LIST,pNewNode2,NULL);
 					CScriptParseTreeNode *pNewNode0 = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_COMPOUND_STATEMENT,pNewNode1,NULL);
+					pNewNode0->nIntegerData = 1;
 					PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_A_STATEMENT,3,3,pNewNode0);
 					return 0;
 				}
@@ -2958,7 +2961,7 @@ int32_t CScriptCompiler::GenerateParseTree()
 				}
 				// MGB - !For Script Debugger
 
-				// IF_CHOICE -> pLeft
+				// IF_CHOICE -> pLeft (then)
 				//pTopStackCurrentNode->pLeft->pRight->pRight->pLeft = pNewNode2;
 				pTopStackCurrentNode->pLeft->pLeft->pRight->pRight->pRight->pLeft = pNewNode2;
 
@@ -3010,7 +3013,7 @@ int32_t CScriptCompiler::GenerateParseTree()
 				// MGB - August 10, 2001 - Fixed bug where else expression was actually linking
 				// directly to the returned parse tree without linking the operation_statement in place.
 				//pTopStackCurrentNode->pLeft->pRight->pRight->pRight = pNewNode2;
-				// IF_CHOICE -> pRight
+				// IF_CHOICE -> pRight (else)
 				pTopStackCurrentNode->pLeft->pLeft->pRight->pRight->pRight->pRight = pNewNode2;
 				ModifySRStackReturnTree(pTopStackCurrentNode);
 			}
@@ -3134,7 +3137,7 @@ int32_t CScriptCompiler::GenerateParseTree()
 				}
 			}
 
-			// Rule 7: while (boolean-expression) statement
+			// Rule 7: while ( statement-group(opt) ; boolean-expression) statement
 			// Term 2: WHILE_BLOCK node collection creation
 			if (nTopStackRule == 7 && nTopStackTerm == 2)
 			{
