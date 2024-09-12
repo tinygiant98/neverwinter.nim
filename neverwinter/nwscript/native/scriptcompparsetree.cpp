@@ -2635,13 +2635,13 @@ int32_t CScriptCompiler::GenerateParseTree()
 			// Within-a-statement:
 			// (1) { within-a-compound-statement }
 			// (2) void-returning-identifier(argument-expression-list) ;
-			// (3) if (boolean-expression) statement
-			// (4) if (boolean-expression) statement else statement
-			// (5) switch ( boolean-expression ) statement
+			// (3) if ( statement-group(opt) ; boolean-expression ) statement
+			// (4) if ( statement-group(opt) ; boolean-expression ) statement else statement
+			// (5) switch ( statement-group(opt) ; boolean-expression ) statement
 			// (6) return non-void-expression(opt) ;
-			// (7) while (boolean-expression) statement
+			// (7) while ( statement-group(opt) ; boolean-expression ) statement
 			// (8) do statement while (boolean-expression) ;
-			// (9) for (expression_opt; expression_opt; expression_opt) statement
+			// (9) for ( statement-group(opt) ; boolean-expression ; statement-group(opt) ) statement
 			// (10) non-void-type-specifier declaration-list ;
 			// (11) expression(opt) ;
 			// (12) default :
@@ -2994,8 +2994,9 @@ int32_t CScriptCompiler::GenerateParseTree()
 				if (m_nTokenStatus == CSCRIPTCOMPILER_TOKEN_LEFT_BRACKET)
 				{
 					//CScriptParseTreeNode *pNewNode0 = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_STATEMENT_NO_DEBUG,NULL,pTopStackCurrentNode);
-					CScriptParseTreeNode *pNewNode0 = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_STATEMENT,NULL,pTopStackCurrentNode);
-					CScriptParseTreeNode *pNewNode1 = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_COMPOUND_STATEMENT,pNewNode0,NULL);
+					CScriptParseTreeNode *pNewNode0 = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_STATEMENT_NO_DEBUG,pTopStackCurrentNode,NULL);
+					CScriptParseTreeNode *pNewNode2 = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_STATEMENT_LIST,pNewNode0,NULL);
+					CScriptParseTreeNode *pNewNode1 = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_COMPOUND_STATEMENT,pNewNode2,NULL);
 					PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_A_STATEMENT,5,3,pNewNode1);
 					return 0;
 				}
@@ -3038,11 +3039,13 @@ int32_t CScriptCompiler::GenerateParseTree()
 				else if (m_nTokenStatus == CSCRIPTCOMPILER_TOKEN_RIGHT_BRACKET)
 				{
 					CScriptParseTreeNode *pNewNode = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_SWITCH_CONDITION,pTopStackReturnNode,NULL);
-					pTopStackCurrentNode->pLeft->pRight->pLeft = pNewNode;
+					//pTopStackCurrentNode->pLeft->pLeft->pRight->pLeft = pNewNode;
+					pTopStackCurrentNode->pLeft->pLeft->pLeft->pLeft = pNewNode;
 					// MGB - February 5, 2003 - Removed pTopStackReturnNode from left branch of this
 					// tree node, since it didn't really make a lot of sense.
 					CScriptParseTreeNode *pNewNode2 = CreateScriptParseTreeNode(CSCRIPTCOMPILER_OPERATION_STATEMENT_NO_DEBUG,NULL,NULL);
-					pTopStackCurrentNode->pLeft->pRight->pRight = pNewNode2;
+					//pTopStackCurrentNode->pLeft->pLeft->pRight->pRight = pNewNode2;
+					pTopStackCurrentNode->pLeft->pLeft->pLeft->pRight = pNewNode2;
 					PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_A_STATEMENT,5,5,pTopStackCurrentNode);
 					PushSRStack(CSCRIPTCOMPILER_GRAMMAR_WITHIN_A_STATEMENT,0,0,NULL);
 					return 0;
@@ -3059,7 +3062,8 @@ int32_t CScriptCompiler::GenerateParseTree()
 					PARSER_ERROR(STRREF_CSCRIPTCOMPILER_ERROR_SWITCH_CONDITION_CANNOT_BE_FOLLOWED_BY_A_NULL_STATEMENT);
 				}
 
-				pTopStackCurrentNode->pLeft->pRight->pRight->pLeft = pTopStackReturnNode;
+				//pTopStackCurrentNode->pLeft->pLeft->pRight->pRight->pLeft = pTopStackReturnNode;
+				pTopStackCurrentNode->pLeft->pLeft->pLeft->pRight->pLeft = pTopStackReturnNode;
 				ModifySRStackReturnTree(pTopStackCurrentNode);
 			}
 
