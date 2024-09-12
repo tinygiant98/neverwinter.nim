@@ -1478,59 +1478,59 @@ int32_t CScriptCompiler::PreVisitGenerateCode(CScriptParseTreeNode *pNode)
 
 		if (pNode->nOperation == CSCRIPTCOMPILER_OPERATION_COMPOUND_STATEMENT)
 		{
-			// Ok, so here's the horrible idea ... the entire if-else... tree is built without being able to interrupt
-			//	it for destroying scope, so since we *know* that if-else trees will always begin with a compound statement,
-			//	and that compound statement defines our scope, we need to determine if we're in an if-else tree, and if we are,
-			//	provide the recursion level data we need to that "gate node" that will trigger the destruction of the previous
-			//	scope level.  This is so hacky, and it actually works, but anyone got a better way?
-
-			// For the if_choice gate idea, we need to drill all the way down to the if_choice node -> l l r r r r l
-			//	if this node exists at all, then we have an else statement and we need to worry about variable scope.
-			//	Once we get to the if_choice node, we can't walk back *up* the tree to get the data we need, so we need
-			//	to send it now.  Unfortunately, there are a lot of options for what the tree will look like once we get
-			//	to the else branch, be we *know* that it will always start with a STATEMENT_NO_DEBUG, so let's use that
-			//	to peel it all away?  Then we need to let this node know not to worry about variable scope.  nIntegerData
-			//	is potentially used, so we'll use a different flag.
-			if (pNode->pLeft && 										// STATEMENT_LIST
-				pNode->pLeft->pLeft && 									// STATEMENT
-				pNode->pLeft->pLeft->pRight && 							// STATEMENT_NO_DEBUG
-			    pNode->pLeft->pLeft->pRight->pRight && 					// IF_BLOCK
-			    pNode->pLeft->pLeft->pRight->pRight->pRight && 			// IF_CHOICE
-				pNode->pLeft->pLeft->pRight->pRight->pRight->pRight)	// STATEMENT_NO_DEBUG
-			{
-				// We have an else branch, so let's pass the info we need to that node
-				if (pNode->pLeft->pLeft->pRight->pRight->pRight->nOperation == CSCRIPTCOMPILER_OPERATION_IF_CHOICE && 
-				   (pNode->pLeft->pLeft->pRight->pRight->pRight->pRight->nOperation == CSCRIPTCOMPILER_OPERATION_STATEMENT ||
-					pNode->pLeft->pLeft->pRight->pRight->pRight->pRight->nOperation == CSCRIPTCOMPILER_OPERATION_STATEMENT_NO_DEBUG))
-				{
-					pNode->pLeft->pLeft->pRight->pRight->pRight->pRight->nIntegerData3 = 1;
-					pNode->pLeft->pLeft->pRight->pRight->pRight->pRight->nIntegerData4 = m_nStackCurrentDepth;
-					pNode->nIntegerData4 = -1;
-				}
-			}
+//			// Ok, so here's the horrible idea ... the entire if-else... tree is built without being able to interrupt
+//			//	it for destroying scope, so since we *know* that if-else trees will always begin with a compound statement,
+//			//	and that compound statement defines our scope, we need to determine if we're in an if-else tree, and if we are,
+//			//	provide the recursion level data we need to that "gate node" that will trigger the destruction of the previous
+//			//	scope level.  This is so hacky, and it actually works, but anyone got a better way?
+//
+//			// For the if_choice gate idea, we need to drill all the way down to the if_choice node -> l l r r r r l
+//			//	if this node exists at all, then we have an else statement and we need to worry about variable scope.
+//			//	Once we get to the if_choice node, we can't walk back *up* the tree to get the data we need, so we need
+//			//	to send it now.  Unfortunately, there are a lot of options for what the tree will look like once we get
+//			//	to the else branch, be we *know* that it will always start with a STATEMENT_NO_DEBUG, so let's use that
+//			//	to peel it all away?  Then we need to let this node know not to worry about variable scope.  nIntegerData
+//			//	is potentially used, so we'll use a different flag.
+//			if (pNode->pLeft && 										// STATEMENT_LIST
+//				pNode->pLeft->pLeft && 									// STATEMENT
+//				pNode->pLeft->pLeft->pRight && 							// STATEMENT_NO_DEBUG
+//			    pNode->pLeft->pLeft->pRight->pRight && 					// IF_BLOCK
+//			    pNode->pLeft->pLeft->pRight->pRight->pRight && 			// IF_CHOICE
+//				pNode->pLeft->pLeft->pRight->pRight->pRight->pRight)	// STATEMENT_NO_DEBUG
+//			{
+//				// We have an else branch, so let's pass the info we need to that node
+//				if (pNode->pLeft->pLeft->pRight->pRight->pRight->nOperation == CSCRIPTCOMPILER_OPERATION_IF_CHOICE && 
+//				   (pNode->pLeft->pLeft->pRight->pRight->pRight->pRight->nOperation == CSCRIPTCOMPILER_OPERATION_STATEMENT ||
+//					pNode->pLeft->pLeft->pRight->pRight->pRight->pRight->nOperation == CSCRIPTCOMPILER_OPERATION_STATEMENT_NO_DEBUG))
+//				{
+//					pNode->pLeft->pLeft->pRight->pRight->pRight->pRight->nIntegerData3 = 1;
+//					pNode->pLeft->pLeft->pRight->pRight->pRight->pRight->nIntegerData4 = m_nStackCurrentDepth;
+//					pNode->nIntegerData4 = -1;
+//				}
+//			}
 
 			m_nVarStackRecursionLevel++;
 		}
 
-		if ((pNode->nOperation == CSCRIPTCOMPILER_OPERATION_STATEMENT ||
-			 pNode->nOperation == CSCRIPTCOMPILER_OPERATION_STATEMENT_NO_DEBUG) &&
-			 pNode->nIntegerData3 == 1)
-		{
-			// This node has been flagged to peel back the last recursion level and destroy variable scope so this
-			//	and future else statements don't have access to the variables in the previous scope level.
-
-			// We start this experiment with a carbon copy of the code fromt he post-visit code generation for
-			//	CSCRIPTCOMPILER_OPERATION_COMPOUND_STATEMENT, but we're going to remove the variables from the stack here
-			//	and not there.  No idea if this will work, but it's worth a shot.  It doesn't appear that m_nVarStackRecursionLevel
-			//	is modified between the original compound statement and here, so we should be able to use it to peel off
-			//	the variables we need to remove.  We also need to check the flag on the way out so we don't try to do this
-			//	twice when traversing the back side of the tree.
-
-			if (CloseVariableScope(pNode->nIntegerData4) != 0)
-			{
-				return OutputWalkTreeError(STRREF_CSCRIPTCOMPILER_ERROR_INCORRECT_VARIABLE_STATE_LEFT_ON_STACK,pNode);
-			}
-		}
+//		if ((pNode->nOperation == CSCRIPTCOMPILER_OPERATION_STATEMENT ||
+//			 pNode->nOperation == CSCRIPTCOMPILER_OPERATION_STATEMENT_NO_DEBUG) &&
+//			 pNode->nIntegerData3 == 1)
+//		{
+//			// This node has been flagged to peel back the last recursion level and destroy variable scope so this
+//			//	and future else statements don't have access to the variables in the previous scope level.
+//
+//			// We start this experiment with a carbon copy of the code fromt he post-visit code generation for
+//			//	CSCRIPTCOMPILER_OPERATION_COMPOUND_STATEMENT, but we're going to remove the variables from the stack here
+//			//	and not there.  No idea if this will work, but it's worth a shot.  It doesn't appear that m_nVarStackRecursionLevel
+//			//	is modified between the original compound statement and here, so we should be able to use it to peel off
+//			//	the variables we need to remove.  We also need to check the flag on the way out so we don't try to do this
+//			//	twice when traversing the back side of the tree.
+//
+//			if (CloseVariableScope(pNode->nIntegerData4) != 0)
+//			{
+//				return OutputWalkTreeError(STRREF_CSCRIPTCOMPILER_ERROR_INCORRECT_VARIABLE_STATE_LEFT_ON_STACK,pNode);
+//			}
+//		}
 
 		// Save the state of the run-time stacks, so that we can check 'em at the
 		// end.  This way, we can verify if we're following the code correctly.
@@ -3574,6 +3574,28 @@ int32_t CScriptCompiler::PostVisitGenerateCode(CScriptParseTreeNode *pNode)
 	{
 		// Handled in the InVisit call, so we don't need to do anything
 		// here to handle this case.
+
+//		if ((pNode->nOperation == CSCRIPTCOMPILER_OPERATION_STATEMENT ||
+//			 pNode->nOperation == CSCRIPTCOMPILER_OPERATION_STATEMENT_NO_DEBUG) &&
+//			 pNode->nIntegerData3 == 1)
+//		{
+//			// This node has been flagged to peel back the last recursion level and destroy variable scope so this
+//			//	and future else statements don't have access to the variables in the previous scope level.
+//
+//			// We start this experiment with a carbon copy of the code fromt he post-visit code generation for
+//			//	CSCRIPTCOMPILER_OPERATION_COMPOUND_STATEMENT, but we're going to remove the variables from the stack here
+//			//	and not there.  No idea if this will work, but it's worth a shot.  It doesn't appear that m_nVarStackRecursionLevel
+//			//	is modified between the original compound statement and here, so we should be able to use it to peel off
+//			//	the variables we need to remove.  We also need to check the flag on the way out so we don't try to do this
+//			//	twice when traversing the back side of the tree.
+//
+//			if (CloseVariableScope(pNode->nIntegerData4) != 0)
+//			{
+//				return OutputWalkTreeError(STRREF_CSCRIPTCOMPILER_ERROR_INCORRECT_VARIABLE_STATE_LEFT_ON_STACK,pNode);
+//			}
+//		}
+
+
 		return 0;
 	}
 
@@ -3592,10 +3614,10 @@ int32_t CScriptCompiler::PostVisitGenerateCode(CScriptParseTreeNode *pNode)
 		// don't need to worry about the address of a variable.
 		
 		// Experiement - gatekeeping at a point other than this node.
-		if (pNode->nIntegerData4 == -1)
-		{
-			return 0;
-		}
+//		if (pNode->nIntegerData4 == -1)
+//		{
+//			return 0;
+//		}
 
 
 		int32_t nStackAtStart = m_nStackCurrentDepth;
