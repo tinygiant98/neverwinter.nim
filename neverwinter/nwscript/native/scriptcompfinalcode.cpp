@@ -1410,7 +1410,7 @@ int32_t CScriptCompiler::WriteResolvedOutput()
 	return 0;
 }
 
-int32_t CScriptCompiler::CloseVariableScope(int32_t nStackPointer)
+void CScriptCompiler::CloseVariableScope() // (int32_t nStackPointer)
 {
 	int32_t nStackAtStart = m_nStackCurrentDepth;
 
@@ -1441,11 +1441,11 @@ int32_t CScriptCompiler::CloseVariableScope(int32_t nStackPointer)
 		EmitModifyStackPointer(nStackModifier);
 	}
 
-	// At this point we should have had the same state that we saved earlier.  If we
-	// don't, there's a big problem, and we should be alerted to it.  This is really
-	// a compiler error, rather than something the user has done.
-
-	return (int32_t) (nStackPointer != m_nStackCurrentDepth);
+//	// At this point we should have had the same state that we saved earlier.  If we
+//	// don't, there's a big problem, and we should be alerted to it.  This is really
+//	// a compiler error, rather than something the user has done.
+//
+//	return (int32_t) (nStackPointer != m_nStackCurrentDepth);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1478,19 +1478,29 @@ int32_t CScriptCompiler::PreVisitGenerateCode(CScriptParseTreeNode *pNode)
 
 		if (pNode->nOperation == CSCRIPTCOMPILER_OPERATION_COMPOUND_STATEMENT)
 		{
-//			// Ok, so here's the horrible idea ... the entire if-else... tree is built without being able to interrupt
-//			//	it for destroying scope, so since we *know* that if-else trees will always begin with a compound statement,
-//			//	and that compound statement defines our scope, we need to determine if we're in an if-else tree, and if we are,
-//			//	provide the recursion level data we need to that "gate node" that will trigger the destruction of the previous
-//			//	scope level.  This is so hacky, and it actually works, but anyone got a better way?
-//
-//			// For the if_choice gate idea, we need to drill all the way down to the if_choice node -> l l r r r r l
-//			//	if this node exists at all, then we have an else statement and we need to worry about variable scope.
-//			//	Once we get to the if_choice node, we can't walk back *up* the tree to get the data we need, so we need
-//			//	to send it now.  Unfortunately, there are a lot of options for what the tree will look like once we get
-//			//	to the else branch, be we *know* that it will always start with a STATEMENT_NO_DEBUG, so let's use that
-//			//	to peel it all away?  Then we need to let this node know not to worry about variable scope.  nIntegerData
-//			//	is potentially used, so we'll use a different flag.
+			// Ok, so here's the horrible idea ... the entire if-else... tree is built without being able to interrupt
+			//	it for destroying scope, so since we *know* that if-else trees will always begin with a compound statement,
+			//	and that compound statement defines our scope, we need to determine if we're in an if-else tree, and if we are,
+			//	provide the recursion level data we need to that "gate node" that will trigger the destruction of the previous
+			//	scope level.  This is so hacky, and it actually works, but anyone got a better way?
+
+			// For the if_choice gate idea, we need to drill all the way down to the if_choice node -> l l r r r r l
+			//	if this node exists at all, then we have an else statement and we need to worry about variable scope.
+			//	Once we get to the if_choice node, we can't walk back *up* the tree to get the data we need, so we need
+			//	to send it now.  Unfortunately, there are a lot of options for what the tree will look like once we get
+			//	to the else branch, be we *know* that it will always start with a STATEMENT_NO_DEBUG, so let's use that
+			//	to peel it all away?  Then we need to let this node know not to worry about variable scope.  nIntegerData
+			//	is potentially used, so we'll use a different flag.
+
+			if (pNode->pLeft && 										// STATEMENT_LIST
+				pNode->pLeft->pLeft && 									// STATEMENT
+				pNode->pLeft->pLeft->pRight && 							// STATEMENT_NO_DEBUG
+			    pNode->pLeft->pLeft->pRight->pRight &&
+				pNode->pLeft->pLeft->pRight->pRight->nOperation == CSCRIPTCOMPILER_OPERATION_IF_BLOCK)
+			{
+				pNode->nIntegerData4 = -1;
+			}					// IF_BLOCK
+
 //			if (pNode->pLeft && 										// STATEMENT_LIST
 //				pNode->pLeft->pLeft && 									// STATEMENT
 //				pNode->pLeft->pLeft->pRight && 							// STATEMENT_NO_DEBUG
@@ -2447,6 +2457,7 @@ int32_t CScriptCompiler::InVisitGenerateCode(CScriptParseTreeNode *pNode)
 
 		}
 
+		CloseVariableScope();
 
 	}
 
@@ -3614,10 +3625,10 @@ int32_t CScriptCompiler::PostVisitGenerateCode(CScriptParseTreeNode *pNode)
 		// don't need to worry about the address of a variable.
 		
 		// Experiement - gatekeeping at a point other than this node.
-//		if (pNode->nIntegerData4 == -1)
-//		{
-//			return 0;
-//		}
+		if (pNode->nIntegerData4 == -1)
+		{
+			return 0;
+		}
 
 
 		int32_t nStackAtStart = m_nStackCurrentDepth;
