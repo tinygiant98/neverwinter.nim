@@ -3502,13 +3502,6 @@ int32_t CScriptCompiler::PostVisitGenerateCode(CScriptParseTreeNode *pNode)
 		// peel them off one by one.  This is actually done within the script itself
 		// as well, since we need to keep track of what's happening.  However, we
 		// don't need to worry about the address of a variable.
-		
-		// Experiement - gatekeeping at a point other than this node.
-		if (pNode->nIntegerData4 == -1)
-		{
-			return 0;
-		}
-
 
 		int32_t nStackAtStart = m_nStackCurrentDepth;
 
