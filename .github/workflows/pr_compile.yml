@@ -1,6 +1,10 @@
 name: Binaries
 
-on: [push, pull_request]
+on:
+  pull_request:
+  push:
+    branches-ignore:
+      - 'master'
 
 jobs:
   compile-binaries:
@@ -13,6 +17,8 @@ jobs:
           # - macOS-latest
         nim-version:
           - 2.0.x
+          - 2.2.x
+
     steps:
     - name: Checkout
       uses: actions/checkout@v3
@@ -46,3 +52,6 @@ jobs:
 
     - name: Build
       run: nimble build -d:release
+
+    - name: Build libscriptcomp
+      run: nimble build_libnwnscriptcomp

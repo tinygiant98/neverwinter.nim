@@ -407,7 +407,7 @@ int32_t CScriptCompiler::CleanUpAfterCompile(int32_t nReturnValue,CScriptParseTr
 
 int32_t CScriptCompiler::OutputWalkTreeError(int32_t nError, CScriptParseTreeNode *pNode)
 {
-	CExoString strRes = m_cAPI.TlkResolve(-nError);
+	CExoString strRes = m_cAPI.TlkResolve ? m_cAPI.TlkResolve(-nError) : TlkToString(-nError);
 
 	CExoString *psFileName;
 	if (pNode != NULL && pNode->m_nFileReference != -1)
@@ -770,7 +770,7 @@ int32_t CScriptCompiler::ValidateLocationOfIdentifier(const CExoString &sFunctio
 ///////////////////////////////////////////////////////////////////////////////
 int32_t CScriptCompiler::OutputIdentifierError(const CExoString &sFunctionName, int32_t nError, int32_t nFileStackDrop)
 {
-	CExoString strRes = m_cAPI.TlkResolve(-nError);
+	CExoString strRes = m_cAPI.TlkResolve ? m_cAPI.TlkResolve(-nError) : TlkToString(-nError);
 
 	//g_pTlkTable->Fetch(-nError, strRes);
 	int32_t nFileStackEntry = m_nCompileFileLevel - nFileStackDrop;
@@ -7112,6 +7112,8 @@ void CScriptCompiler::EmitModifyStackPointer(int32_t nModifyBy)
 				return;
 			}
 		}
+		// Disabled for now, appears to cause infinite loops in some cases
+#if 0		
 		// The common loop pattern of `for (i = 0; i < 1000; ++i)` gets compiled into
 		//    10  CONSTANT, TYPE_INTEGER, 0               
 		//    16  RUNSTACK_COPY, TYPE_VOID, -4, 4         
@@ -7164,6 +7166,7 @@ void CScriptCompiler::EmitModifyStackPointer(int32_t nModifyBy)
 				}
 			}
 		}
+#endif
 
 	}
 
