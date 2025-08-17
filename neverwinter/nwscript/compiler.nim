@@ -40,13 +40,14 @@ type
   # Needs to match scriptcomp.h
   OptimizationFlag* {.pure.} = enum
     RemoveDeadCode       = 0x1
-    FoldConstants        = 0x2
-    MeldInstructions     = 0x4
-    RemoveDeadBranches   = 0x8
+    MeldInstructions     = 0x2
+    RemoveDeadBranches   = 0x4
 
 const
   OptimizationFlagsO0* = {}
-  OptimizationFlagsO2* = fullSet(OptimizationFlag)
+  OptimizationFlagsO1* = {RemoveDeadCode}
+  OptimizationFlagsO2* = {RemoveDeadCode, RemoveDeadBranches}
+  OptimizationFlagsO3* = {RemoveDeadCode, RemoveDeadBranches, MeldInstructions}
 
 proc scriptCompApiNewCompiler(
   src, bin, dbt: cint,
