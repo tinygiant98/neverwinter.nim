@@ -127,6 +127,13 @@ EXPORT_SYMBOL void scriptCompApiSetOptimizationFlags(CScriptCompiler* instance, 
 EXPORT_SYMBOL void scriptCompApiSetGenerateDebuggerOutput(CScriptCompiler* instance, bool state);
 
 //
+// Set whether an entry point (void main or int StartingConditional) is required.
+// When set to false, scripts without entry points can be compiled for validation purposes.
+// This is useful for validating include files.
+//
+EXPORT_SYMBOL void scriptCompApiSetRequireEntryPoint(CScriptCompiler* instance, bool state);
+
+//
 // Destroy the compiler instance. You should call this when you're done
 // using it to free allocated memory.
 //

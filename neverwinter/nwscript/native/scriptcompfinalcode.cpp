@@ -84,6 +84,14 @@ int32_t CScriptCompiler::GenerateFinalCodeFromParseTree(CExoString sFileName)
 
 	int32_t nReturnValue = InstallLoader();
 	pNewReturnTree = InsertGlobalVariablesInParseTree(pReturnTree);
+
+	// InstallLoader returns 1 when no entry point is required and none was found.
+	// In this case, parsing was successful but there is no code to generate.
+	if (nReturnValue == 1)
+	{
+		return CleanUpAfterCompile(0, pNewReturnTree);
+	}
+
 	if (nReturnValue >= 0)
 	{
 		nReturnValue = WalkParseTree(pNewReturnTree);
@@ -499,7 +507,13 @@ int32_t CScriptCompiler::InstallLoader()
 			}
 			else
 			{
-				// Neither are present, so we're going to error just as
+				// Neither are present.
+				if (m_bRequireEntryPoint == FALSE)
+				{
+					// No entry point required - signal caller to skip code generation.
+					return 1;
+				}
+				// Otherwise we're going to error just as
 				// if we are expecting a void main() function!
 				m_bCompileConditionalFile = FALSE;
 			}
@@ -511,6 +525,11 @@ int32_t CScriptCompiler::InstallLoader()
 		nMainIdentifier = GetIdentifierByName("main");
 		if (nMainIdentifier < 0)
 		{
+			if (m_bRequireEntryPoint == FALSE)
+			{
+				// No entry point required - signal caller to skip code generation.
+				return 1;
+			}
 			return STRREF_CSCRIPTCOMPILER_ERROR_NO_FUNCTION_MAIN_IN_SCRIPT;
 		}
 
@@ -532,6 +551,11 @@ int32_t CScriptCompiler::InstallLoader()
 		nMainIdentifier = GetIdentifierByName("StartingConditional");
 		if (nMainIdentifier < 0)
 		{
+			if (m_bRequireEntryPoint == FALSE)
+			{
+				// No entry point required - signal caller to skip code generation.
+				return 1;
+			}
 			return STRREF_CSCRIPTCOMPILER_ERROR_NO_FUNCTION_INTSC_IN_SCRIPT;
 		}
 

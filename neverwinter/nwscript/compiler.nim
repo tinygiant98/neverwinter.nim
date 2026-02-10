@@ -218,3 +218,11 @@ proc scriptCompApiSetGenerateDebuggerOutput(instance: CScriptCompiler, state: ui
 
 proc setGenerateDebuggerOutput*(instance: ScriptCompiler, state: bool) =
   scriptCompApiSetGenerateDebuggerOutput(instance.compiler, if state: 1 else: 0)
+
+proc scriptCompApiSetRequireEntryPoint(instance: CScriptCompiler, state: uint32) {.importc.}
+
+proc setRequireEntryPoint*(instance: ScriptCompiler, required: bool) =
+  ## Set whether an entry point (void main or int StartingConditional) is required.
+  ## When set to false, scripts without entry points can be compiled for validation purposes.
+  ## This is useful for validating include files.
+  scriptCompApiSetRequireEntryPoint(instance.compiler, if required: 1 else: 0)
