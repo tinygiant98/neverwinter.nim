@@ -364,6 +364,7 @@ CScriptCompiler::CScriptCompiler(RESTYPE nSource, RESTYPE nCompiled, RESTYPE nDe
 
 	m_bCollectAllErrors = FALSE;
 	m_nMaxCollectedErrors = 100;
+	m_pSavedParseTree = NULL;
 
 	Initialize();
 
@@ -1290,6 +1291,16 @@ int32_t CScriptCompiler::CompileFile(const CExoString &sFileName)
 	// If errors were accumulated, skip code generation and return the first error code.
 	if (m_bCollectAllErrors && !m_vCapturedErrors.empty())
 	{
+		// Walk any saved complete function trees to detect semantic errors
+		// even when parsing had errors.
+		if (m_pSavedParseTree != NULL && m_nCompileFileLevel == 1)
+		{
+			InitializeFinalCode();
+			CScriptParseTreeNode *pTree = InsertGlobalVariablesInParseTree(m_pSavedParseTree);
+			WalkParseTree(pTree);
+			// Code buffer not needed — we only wanted semantic error detection.
+			// CleanUpAfterCompile or the final teardown will handle memory.
+		}
 		m_pcIncludeFileStack[m_nCompileFileLevel-1].m_sSourceScript = "";
 		--m_nCompileFileLevel;
 		return STRREF_CSCRIPTCOMPILER_ERROR_ALREADY_PRINTED;

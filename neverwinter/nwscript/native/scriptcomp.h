@@ -714,6 +714,7 @@ private:
 	int32_t m_nMaxCollectedErrors;
 	std::vector<CExoString> m_vCapturedErrors;
 	std::vector<STRREF> m_vnCapturedErrorStrRefs;
+	CScriptParseTreeNode *m_pSavedParseTree;  // Completed function trees saved before error recovery
 
 public:
 	void SetCollectAllErrors(BOOL bValue) { m_bCollectAllErrors = bValue; }

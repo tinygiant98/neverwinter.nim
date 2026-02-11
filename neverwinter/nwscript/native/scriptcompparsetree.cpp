@@ -4668,6 +4668,57 @@ int32_t CScriptCompiler::ParseSource(const char *pScript, int32_t nScriptLength)
 					++i;
 				}
 
+				// --- Save completed function trees before recovery destroys the stack ---
+				if (m_bCollectAllErrors)
+				{
+					// The SR stack contains a ladder of FUNCTIONAL_UNIT nodes
+					// from the recursive PROGRAM grammar. Each FU with a non-NULL
+					// pLeft has a completed function body. Collect these and chain
+					// them via pRight links for later semantic analysis.
+					CScriptParseTreeNode *pChainHead = NULL;
+					CScriptParseTreeNode *pChainTail = NULL;
+
+					for (int32_t idx = 0; idx <= m_nSRStackStates; idx++)
+					{
+						CScriptParseTreeNode *p = m_pSRStack[idx].pCurrentTree;
+						if (p != NULL &&
+						    p->nOperation == CSCRIPTCOMPILER_OPERATION_FUNCTIONAL_UNIT &&
+						    p->pLeft != NULL)
+						{
+							// Detach from stack so DeleteCompileStack won't Clean() it
+							m_pSRStack[idx].pCurrentTree = NULL;
+							p->pRight = NULL;
+
+							if (pChainHead == NULL)
+							{
+								pChainHead = p;
+								pChainTail = p;
+							}
+							else
+							{
+								pChainTail->pRight = p;
+								pChainTail = p;
+							}
+						}
+					}
+
+					// Append collected chain to the saved tree accumulator
+					if (pChainHead != NULL)
+					{
+						if (m_pSavedParseTree == NULL)
+						{
+							m_pSavedParseTree = pChainHead;
+						}
+						else
+						{
+							CScriptParseTreeNode *pEnd = m_pSavedParseTree;
+							while (pEnd->pRight) pEnd = pEnd->pRight;
+							pEnd->pRight = pChainHead;
+						}
+					}
+				}
+				// --- End save ---
+
 				// Reset the parser state to top-level context
 				TokenInitialize();
 				DeleteCompileStack();
@@ -4724,6 +4775,78 @@ int32_t CScriptCompiler::ParseSource(const char *pScript, int32_t nScriptLength)
 	// as the parser state may not be in a valid terminal state after recovery.
 	if (m_bCollectAllErrors && !m_vCapturedErrors.empty())
 	{
+		// Save any post-recovery parsed functions from the stack.
+		// After error recovery, the parser may have successfully parsed
+		// additional functions. Collect them the same way as in recovery.
+		{
+			CScriptParseTreeNode *pChainHead = NULL;
+			CScriptParseTreeNode *pChainTail = NULL;
+
+			for (int32_t idx = 0; idx <= m_nSRStackStates; idx++)
+			{
+				CScriptParseTreeNode *p = m_pSRStack[idx].pCurrentTree;
+				if (p == NULL) continue;
+
+				if (p->nOperation == CSCRIPTCOMPILER_OPERATION_FUNCTIONAL_UNIT &&
+				    p->pLeft != NULL)
+				{
+					m_pSRStack[idx].pCurrentTree = NULL;
+					p->pRight = NULL;
+					if (pChainHead == NULL)
+					{
+						pChainHead = p;
+						pChainTail = p;
+					}
+					else
+					{
+						pChainTail->pRight = p;
+						pChainTail = p;
+					}
+				}
+				else if (p->nOperation == CSCRIPTCOMPILER_OPERATION_FUNCTION)
+				{
+					// The function may have a completed body in pReturnTree
+					// that hasn't been linked yet (e.g., FUNCTIONAL_UNIT rule 2
+					// term 8 was pending when we reached EOF). Complete the
+					// reduction manually.
+					CScriptParseTreeNode *pr = m_pSRStack[idx].pReturnTree;
+					if (pr != NULL && p->pRight == NULL)
+					{
+						p->pRight = pr;
+						m_pSRStack[idx].pReturnTree = NULL;
+					}
+
+					// Wrap bare FUNCTION nodes in FUNCTIONAL_UNIT
+					CScriptParseTreeNode *pFU = CreateScriptParseTreeNode(
+						CSCRIPTCOMPILER_OPERATION_FUNCTIONAL_UNIT, p, NULL);
+					m_pSRStack[idx].pCurrentTree = NULL;
+					if (pChainHead == NULL)
+					{
+						pChainHead = pFU;
+						pChainTail = pFU;
+					}
+					else
+					{
+						pChainTail->pRight = pFU;
+						pChainTail = pFU;
+					}
+				}
+			}
+
+			if (pChainHead != NULL)
+			{
+				if (m_pSavedParseTree == NULL)
+				{
+					m_pSavedParseTree = pChainHead;
+				}
+				else
+				{
+					CScriptParseTreeNode *pEnd = m_pSavedParseTree;
+					while (pEnd->pRight) pEnd = pEnd->pRight;
+					pEnd->pRight = pChainHead;
+				}
+			}
+		}
 		return 0;
 	}
 
