@@ -4468,6 +4468,14 @@ int32_t CScriptCompiler::PrintParseSourceError(int32_t nParsingError)
 
 	OutputError(nParsingError,psFileName,m_nLines,sErrorText);
 
+	// In multi-error mode, don't tear down the compiler state.
+	// Return a positive sentinel value so ParseSource() can recover and continue.
+	if (m_bCollectAllErrors)
+	{
+		m_sParserErrorExtraInfo = "";
+		return 1; // Positive: signals ParseSource to recover
+	}
+
 	nParsingError = STRREF_CSCRIPTCOMPILER_ERROR_ALREADY_PRINTED;
 
 	return CleanUpDuringCompile(nParsingError);
@@ -4590,7 +4598,87 @@ int32_t CScriptCompiler::ParseSource(const char *pScript, int32_t nScriptLength)
 
 		if (nParseNextCharReturn < 0)
 		{
-			return PrintParseSourceError(nParseNextCharReturn);
+			int32_t nErrorResult = PrintParseSourceError(nParseNextCharReturn);
+
+			// In multi-error mode, PrintParseSourceError returns positive (1) to signal recovery.
+			// We skip forward to a synchronization point and reset the parser state.
+			if (m_bCollectAllErrors && nErrorResult > 0)
+			{
+				// Check if we've hit the error limit
+				if ((int32_t)m_vCapturedErrors.size() >= m_nMaxCollectedErrors)
+				{
+					return STRREF_CSCRIPTCOMPILER_ERROR_ALREADY_PRINTED;
+				}
+
+				// Skip forward to a synchronization point.
+				// We look for ';' or '}' at brace depth 0 relative to current position.
+				int32_t nBraceDepth = 0;
+				bool bFoundSync = false;
+
+				while (ch != -1 && !bFoundSync)
+				{
+					if (ch == '{')
+					{
+						++nBraceDepth;
+					}
+					else if (ch == '}')
+					{
+						if (nBraceDepth > 0)
+						{
+							--nBraceDepth;
+							if (nBraceDepth == 0)
+							{
+								// Closed back to top-level (e.g. end of function body) - sync here
+								bFoundSync = true;
+							}
+						}
+						else
+						{
+							// Found an unmatched closing brace at depth 0 - sync after it
+							bFoundSync = true;
+						}
+					}
+					else if (ch == ';' && nBraceDepth == 0)
+					{
+						// Found a semicolon at depth 0 - sync after it
+						bFoundSync = true;
+					}
+
+					// Track line numbers during skip
+					if (ch == '\n')
+					{
+						++m_nLines;
+						m_nCharacterOnLine = 1;
+					}
+					else
+					{
+						++m_nCharacterOnLine;
+					}
+
+					// Advance to next character
+					ch = chNext;
+					if (i >= nScriptLength)
+					{
+						chNext = -1;
+					}
+					else
+					{
+						chNext = (unsigned char) pScript[i];
+					}
+					++i;
+				}
+
+				// Reset the parser state to top-level context
+				TokenInitialize();
+				DeleteCompileStack();
+				m_nSRStackStates = -1;
+				PushSRStack(0, 0, 0, NULL);
+
+				continue;
+			}
+
+			// Normal mode: return the error immediately
+			return nErrorResult;
 		}
 
 		while (nParseNextCharReturn >= 0)
@@ -4631,6 +4719,13 @@ int32_t CScriptCompiler::ParseSource(const char *pScript, int32_t nScriptLength)
 	// Parse an EOF.
 	//
 	///////////////////////////////////////////////
+
+	// In multi-error mode, if we've already collected errors, don't try to parse EOF
+	// as the parser state may not be in a valid terminal state after recovery.
+	if (m_bCollectAllErrors && !m_vCapturedErrors.empty())
+	{
+		return 0;
+	}
 
 	nParseNextCharReturn = ParseNextCharacter(-1,-1, nullptr, 0);
 

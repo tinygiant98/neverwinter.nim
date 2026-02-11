@@ -705,4 +705,20 @@ private:
 
 	CExoString  m_sCapturedError;
     STRREF      m_nCapturedErrorStrRef;
+
+	// Multi-error collection support.
+	// When m_bCollectAllErrors is TRUE, errors are accumulated into vectors
+	// instead of stopping at the first error. The parser will attempt to
+	// recover and continue parsing after each error.
+	BOOL m_bCollectAllErrors;
+	int32_t m_nMaxCollectedErrors;
+	std::vector<CExoString> m_vCapturedErrors;
+	std::vector<STRREF> m_vnCapturedErrorStrRefs;
+
+public:
+	void SetCollectAllErrors(BOOL bValue) { m_bCollectAllErrors = bValue; }
+	BOOL GetCollectAllErrors() const { return m_bCollectAllErrors; }
+	int32_t GetCollectedErrorCount() const { return (int32_t)m_vCapturedErrors.size(); }
+	const CExoString& GetCollectedError(int32_t index) const { EXOASSERT(index >= 0 && index < (int32_t)m_vCapturedErrors.size()); return m_vCapturedErrors[index]; }
+	STRREF GetCollectedErrorStrRef(int32_t index) const { EXOASSERT(index >= 0 && index < (int32_t)m_vnCapturedErrorStrRefs.size()); return m_vnCapturedErrorStrRefs[index]; }
 };

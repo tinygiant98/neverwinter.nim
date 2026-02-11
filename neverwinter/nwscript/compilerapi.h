@@ -134,6 +134,28 @@ EXPORT_SYMBOL void scriptCompApiSetGenerateDebuggerOutput(CScriptCompiler* insta
 EXPORT_SYMBOL void scriptCompApiSetRequireEntryPoint(CScriptCompiler* instance, bool state);
 
 //
+// Enable or disable multi-error collection mode.
+// When enabled, the compiler will attempt to recover from parse errors and
+// continue compiling to collect additional errors. The first error is always
+// accurate; subsequent errors may include false positives.
+// Default: disabled (compiler stops at first error).
+//
+EXPORT_SYMBOL void scriptCompApiSetCollectAllErrors(CScriptCompiler* instance, bool state);
+
+//
+// Get the number of errors collected during the last compilation.
+// Only meaningful when multi-error collection is enabled.
+// Returns 0 if no errors were collected or multi-error mode is disabled.
+//
+EXPORT_SYMBOL int32_t scriptCompApiGetCollectedErrorCount(CScriptCompiler* instance);
+
+//
+// Get a specific collected error by index (0-based).
+// Only meaningful when multi-error collection is enabled and index < GetCollectedErrorCount().
+//
+EXPORT_SYMBOL NativeCompileResult scriptCompApiGetCollectedError(CScriptCompiler* instance, int32_t index);
+
+//
 // Destroy the compiler instance. You should call this when you're done
 // using it to free allocated memory.
 //

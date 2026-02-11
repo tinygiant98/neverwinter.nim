@@ -362,6 +362,9 @@ CScriptCompiler::CScriptCompiler(RESTYPE nSource, RESTYPE nCompiled, RESTYPE nDe
     m_nDeliveredFileDataSize = 0;
     m_nDeliveredFileSize = 0;
 
+	m_bCollectAllErrors = FALSE;
+	m_nMaxCollectedErrors = 100;
+
 	Initialize();
 
 }
@@ -498,6 +501,8 @@ void CScriptCompiler::Initialize( )
 
 	m_sCapturedError = "";
     m_nCapturedErrorStrRef = 0;
+	m_vCapturedErrors.clear();
+	m_vnCapturedErrorStrRefs.clear();
 
 	m_nLines = 1;
 	m_nCharacterOnLine = 1;
@@ -1281,6 +1286,15 @@ int32_t CScriptCompiler::CompileFile(const CExoString &sFileName)
 		return nReturnValue;
 	}
 
+	// In multi-error mode, ParseSource returns 0 even when errors were collected.
+	// If errors were accumulated, skip code generation and return the first error code.
+	if (m_bCollectAllErrors && !m_vCapturedErrors.empty())
+	{
+		m_pcIncludeFileStack[m_nCompileFileLevel-1].m_sSourceScript = "";
+		--m_nCompileFileLevel;
+		return STRREF_CSCRIPTCOMPILER_ERROR_ALREADY_PRINTED;
+	}
+
 	// We have successfully compiled this file.  If we are still in
 	// the middle of another CompileFile (i.e. this is an included
 	// file, return success back to the main routine.
@@ -1520,7 +1534,7 @@ int32_t CScriptCompiler::OutputError(int32_t nError, CExoString *psFileName, int
 		}
 	}
 
-	m_sCapturedError = sFullErrorText;
+	CExoString sFinalError = sFullErrorText;
 
     CExoString sTraceIncludes = "";
     for (int i = 1; i < m_nCompileFileLevel; i++)
@@ -1533,10 +1547,26 @@ int32_t CScriptCompiler::OutputError(int32_t nError, CExoString *psFileName, int
 
     if (!sTraceIncludes.IsEmpty())
     {
-        m_sCapturedError.Format("%s [via:%s]", m_sCapturedError.CStr(), sTraceIncludes.CStr());
+        sFinalError.Format("%s [via:%s]", sFinalError.CStr(), sTraceIncludes.CStr());
     }
 
-    m_nCapturedErrorStrRef = nError;
+    if (m_bCollectAllErrors)
+    {
+        m_vCapturedErrors.push_back(sFinalError);
+        m_vnCapturedErrorStrRefs.push_back(nError);
+
+        // Keep m_sCapturedError set to the first error for backward compatibility
+        if (m_vCapturedErrors.size() == 1)
+        {
+            m_sCapturedError = sFinalError;
+            m_nCapturedErrorStrRef = nError;
+        }
+    }
+    else
+    {
+        m_sCapturedError = sFinalError;
+        m_nCapturedErrorStrRef = nError;
+    }
 
 	// Print the full error text to the log file.
     // This is used and parsed by the toolset :( Do not remove.

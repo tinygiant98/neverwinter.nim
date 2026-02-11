@@ -89,6 +89,16 @@ int32_t CScriptCompiler::GenerateFinalCodeFromParseTree(CExoString sFileName)
 	// In this case, parsing was successful but there is no code to generate.
 	if (nReturnValue == 1)
 	{
+		// In multi-error mode, still walk the parse tree to detect semantic errors
+		// (type mismatches, undeclared identifiers, etc.) even in include files.
+		if (m_bCollectAllErrors)
+		{
+			WalkParseTree(pNewReturnTree);
+			if (!m_vCapturedErrors.empty())
+			{
+				return CleanUpAfterCompile(STRREF_CSCRIPTCOMPILER_ERROR_ALREADY_PRINTED, pNewReturnTree);
+			}
+		}
 		return CleanUpAfterCompile(0, pNewReturnTree);
 	}
 
@@ -135,6 +145,13 @@ int32_t CScriptCompiler::GenerateFinalCodeFromParseTree(CExoString sFileName)
 			fprintf(f, "}\n");
 			fclose(f);
 		}
+	}
+
+	// In multi-error mode, if errors were accumulated during the tree walk,
+	// skip code output and clean up. The errors are already captured.
+	if (m_bCollectAllErrors && !m_vCapturedErrors.empty())
+	{
+		return CleanUpAfterCompile(STRREF_CSCRIPTCOMPILER_ERROR_ALREADY_PRINTED, pNewReturnTree);
 	}
 
 	if (nReturnValue < 0)
@@ -6345,7 +6362,40 @@ int32_t CScriptCompiler::WalkParseTree(CScriptParseTreeNode *pNode)
 		if (nReturnCode == 0)
 		{
 			pNode->pLeft = TrimParseTree(pNode->pLeft);
-			nReturnCode = WalkParseTree(pNode->pLeft);
+
+			// In multi-error mode, when walking a FUNCTIONAL_UNIT (top-level list node),
+			// save state before walking the left child (a function). If it errors,
+			// roll back state and continue to the right child (next function).
+			if (m_bCollectAllErrors &&
+			    pNode->nOperation == CSCRIPTCOMPILER_OPERATION_FUNCTIONAL_UNIT)
+			{
+				int32_t savedOutputCodeLength = m_nOutputCodeLength;
+				int32_t savedOccupiedVariables = m_nOccupiedVariables;
+				int32_t savedStackCurrentDepth = m_nStackCurrentDepth;
+				int32_t savedVarStackRecursionLevel = m_nVarStackRecursionLevel;
+
+				nReturnCode = WalkParseTree(pNode->pLeft);
+
+				if (nReturnCode < 0)
+				{
+					// Error already captured via OutputError/OutputWalkTreeError.
+					// Roll back code generation state to before this function.
+					m_nOutputCodeLength = savedOutputCodeLength;
+					m_nOccupiedVariables = savedOccupiedVariables;
+					m_nStackCurrentDepth = savedStackCurrentDepth;
+					m_nVarStackRecursionLevel = savedVarStackRecursionLevel;
+
+					// Continue to next function unless error limit reached.
+					if ((int32_t)m_vCapturedErrors.size() < m_nMaxCollectedErrors)
+					{
+						nReturnCode = 0;
+					}
+				}
+			}
+			else
+			{
+				nReturnCode = WalkParseTree(pNode->pLeft);
+			}
 		}
 
 		if (nReturnCode == 0)
