@@ -31,7 +31,7 @@ Usage:
   --follow-symlinks           Follow symlinks when compiling recursively.
 
   -g                          Write debug symbol files (NDB).
-  -y N                        Continue processing input files even on error. [default: 1000]
+  -y                          Continue processing input files after first error.
   -j N                        Parallel execution (default: all CPUs).
 
   -O N                        Optimisation levels [default: 1]
@@ -76,7 +76,6 @@ type
     graphvizOut: string
     compileIncludes: bool
     continueOnError: bool
-    maxErrors: 1..1000
 
   GlobalState = object
     successes, errors, skips: Atomic[uint]
@@ -122,8 +121,7 @@ globalState.params = Params(
   maxIncludeDepth: min(max(parseInt($globalState.args["--max-include-depth"]), 1), 200),
   followSymlinks: globalState.args["--follow-symlinks"],
   graphvizOut: if globalState.args["--graphviz"]: ($globalState.args["--graphviz"]) else: "",
-  compileIncludes: globalState.args["-I"].to_bool,
-  maxErrors: min(max(parseInt($globalState.args["-y"]), 1), 1000)
+  compileIncludes: globalState.args["-I"].to_bool
 )
 
 if globalState.params.outDirectory != "" and not dirExists(globalState.params.outDirectory):
@@ -216,7 +214,7 @@ proc getThreadState(): ThreadState {.gcsafe.} =
     state.cNSS = newCompiler(params.langSpec, params.debugSymbols, resolveFile, params.maxIncludeDepth, params.graphvizOut)
     state.cNSS.setOptimizations(params.optFlags)
     state.cNSS.setCompileIncludes(params.compileIncludes)
-    state.cNSS.setMaxCompileErrors(params.maxErrors)
+    state.cNSS.setContinueOnError(params.continueOnError)
   state
 
 proc doCompile(num, total: Positive, p: string, overrideOutPath: string = "") {.gcsafe.} =

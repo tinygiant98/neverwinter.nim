@@ -140,7 +140,7 @@ EXPORT_SYMBOL void scriptCompApiSetCompileIncludes(CScriptCompiler* instance, bo
 // parse errors and continue compiling to collect additional errors. The first error is always
 // accurate; subsequent errors may include false positives.
 //
-EXPORT_SYMBOL void scriptCompApiSetMaxCompileErrors(CScriptCompiler* instance, int32_t nErrors);
+EXPORT_SYMBOL void scriptCompApiSetContinueOnError(CScriptCompiler* instance, int32_t nErrors);
 
 //
 // Get the number of errors collected during the last compilation.

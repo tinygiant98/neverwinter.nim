@@ -72,7 +72,7 @@ proc scriptCompApiInitCompiler(
 proc scriptCompApiCompileFile(instance: CScriptCompiler, fn: cstring): tuple[code: int32, str: cstring] {.importc.}
 proc scriptCompApiDeliverFile(instance: CScriptCompiler, data: cstring, size: csize_t) {.importc.}
 
-proc scriptCompApiSetMaxCompileErrors(instance: CScriptCompiler, state: int32) {.importc.}
+proc scriptCompApiSetContinueOnError(instance: CScriptCompiler, state: int32) {.importc.}
 proc scriptCompApiGetCompileErrorCount(instance: CScriptCompiler): int32 {.importc.}
 proc scriptCompApiGetCompileError(instance: CScriptCompiler, index: int32): tuple[code: int32, str: cstring] {.importc.}
 
@@ -243,5 +243,5 @@ proc setCompileIncludes*(instance: ScriptCompiler, required: bool) =
   ## This is useful for validating include files.
   scriptCompApiSetCompileIncludes(instance.compiler, if required: 1 else: 0)
 
-proc setMaxCompileErrors*(instance: ScriptCompiler, nErrors: int32) =
-  scriptCompApiSetMaxCompileErrors(instance.compiler, nErrors)
+proc setContinueOnError*(instance: ScriptCompiler, required: bool) =
+  scriptCompApiSetContinueOnError(instance.compiler, if required: 1 else: 0)

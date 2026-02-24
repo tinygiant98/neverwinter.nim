@@ -78,9 +78,9 @@ extern "C" void scriptCompApiSetCompileIncludes(CScriptCompiler* instance, bool 
     instance->SetCompileIncludes(state);
 }
 
-extern "C" void scriptCompApiSetMaxCompileErrors(CScriptCompiler* instance, int32_t nErrors)
+extern "C" void scriptCompApiSetContinueOnError(CScriptCompiler* instance, int32_t nErrors)
 {
-    instance->SetMaxCompileErrors(nErrors);
+    instance->SetContinueOnError(nErrors);
 }
 
 extern "C" int32_t scriptCompApiGetCompileErrorCount(CScriptCompiler* instance)
