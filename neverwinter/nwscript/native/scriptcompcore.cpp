@@ -1151,9 +1151,9 @@ void CScriptCompiler::SetCompileConditionalOrMain(BOOL bValue)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-//  CScriptCompiler::setCompileIncludes()
+//  CScriptCompiler::SetCompileIncludes()
 ///////////////////////////////////////////////////////////////////////////////
-void CScriptCompiler::setCompileIncludes(BOOL bValue)
+void CScriptCompiler::SetCompileIncludes(BOOL bValue)
 {
 	m_bCompileIncludes = bValue;
 }

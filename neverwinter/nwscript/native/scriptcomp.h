@@ -251,7 +251,7 @@ public:
 	///////////////////////////////////////////////////////////////////////
 
 	///////////////////////////////////////////////////////////////////////
-	void setCompileIncludes(BOOL bValue);
+	void SetCompileIncludes(BOOL bValue);
 	//---------------------------------------------------------------------
 	// Desc.: This routine will set whether an entry point (void main or
 	//        int StartingConditional) is required for compilation.

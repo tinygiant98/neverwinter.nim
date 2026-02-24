@@ -75,7 +75,7 @@ extern "C" void scriptCompApiSetGenerateDebuggerOutput(CScriptCompiler* instance
 
 extern "C" void scriptCompApiSetCompileIncludes(CScriptCompiler* instance, bool state)
 {
-    instance->setCompileIncludes(state);
+    instance->SetCompileIncludes(state);
 }
 
 extern "C" void scriptCompApiSetMaxCompileErrors(CScriptCompiler* instance, int32_t nErrors)
