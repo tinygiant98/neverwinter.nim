@@ -719,7 +719,7 @@ private:
 	CScriptParseTreeNode *m_pSavedParseTree;
 
 public:
-	void setMaxCompileErrors(int32_t nErrors) {
+	void SetMaxCompileErrors(int32_t nErrors) {
 		m_nErrors = std::min(nErrors, CSCRIPTCOMPILER_MAX_ERRORS);
 		m_bContinueOnError = m_nErrors > 1;
 	}

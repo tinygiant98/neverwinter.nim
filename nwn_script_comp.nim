@@ -215,7 +215,7 @@ proc getThreadState(): ThreadState {.gcsafe.} =
     state.chDemandResRefResponse.open(maxItems=1)
     state.cNSS = newCompiler(params.langSpec, params.debugSymbols, resolveFile, params.maxIncludeDepth, params.graphvizOut)
     state.cNSS.setOptimizations(params.optFlags)
-    state.cNSS.SetCompileIncludes(params.compileIncludes)
+    state.cNSS.setCompileIncludes(params.compileIncludes)
     state.cNSS.setMaxCompileErrors(params.maxErrors)
   state
 
