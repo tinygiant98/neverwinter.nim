@@ -243,5 +243,5 @@ proc setCompileIncludes*(instance: ScriptCompiler, required: bool) =
   ## This is useful for validating include files.
   scriptCompApiSetCompileIncludes(instance.compiler, if required: 1 else: 0)
 
-proc SetMaxCompileErrors*(instance: ScriptCompiler, nErrors: int32) =
+proc setMaxCompileErrors*(instance: ScriptCompiler, nErrors: int32) =
   scriptCompApiSetMaxCompileErrors(instance.compiler, nErrors)
