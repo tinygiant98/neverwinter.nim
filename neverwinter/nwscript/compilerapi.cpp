@@ -5,8 +5,7 @@
 extern "C" int32_t scriptCompApiGetABIVersion()
 {
     // Increment this whenever you make ABI-incompatible changes.
-    // v2: Added multi-error collection API (SetCollectAllErrors, GetCollectedErrorCount, GetCollectedError)
-    return 2;
+    return 1;
 }
 
 extern "C" CScriptCompiler* scriptCompApiNewCompiler(int src, int bin, int dbg,
@@ -74,28 +73,28 @@ extern "C" void scriptCompApiSetGenerateDebuggerOutput(CScriptCompiler* instance
     instance->SetGenerateDebuggerOutput(state);
 }
 
-extern "C" void scriptCompApiSetRequireEntryPoint(CScriptCompiler* instance, bool state)
+extern "C" void scriptCompApiSetCompileIncludes(CScriptCompiler* instance, bool state)
 {
-    instance->SetRequireEntryPoint(state);
+    instance->setCompileIncludes(state);
 }
 
-extern "C" void scriptCompApiSetCollectAllErrors(CScriptCompiler* instance, bool state)
+extern "C" void scriptCompApiSetMaxCompileErrors(CScriptCompiler* instance, int32_t nErrors)
 {
-    instance->SetCollectAllErrors(state ? TRUE : FALSE);
+    instance->SetMaxCompileErrors(nErrors);
 }
 
-extern "C" int32_t scriptCompApiGetCollectedErrorCount(CScriptCompiler* instance)
+extern "C" int32_t scriptCompApiGetCompileErrorCount(CScriptCompiler* instance)
 {
-    return instance->GetCollectedErrorCount();
+    return instance->GetCompileErrorCount();
 }
 
-extern "C" NativeCompileResult scriptCompApiGetCollectedError(CScriptCompiler* instance, int32_t index)
+extern "C" NativeCompileResult scriptCompApiGetCompileError(CScriptCompiler* instance, int32_t index)
 {
     NativeCompileResult ret;
-    if (index >= 0 && index < instance->GetCollectedErrorCount())
+    if (index >= 0 && index < instance->GetCompileErrorCount())
     {
-        ret.code = instance->GetCollectedErrorStrRef(index);
-        ret.str = instance->GetCollectedError(index).CStr();
+        ret.code = instance->GetCompileErrorStrRef(index);
+        ret.str = instance->GetCompileError(index).CStr();
     }
     else
     {

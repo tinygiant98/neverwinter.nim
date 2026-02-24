@@ -91,14 +91,15 @@ int32_t CScriptCompiler::GenerateFinalCodeFromParseTree(CExoString sFileName)
 	{
 		// In multi-error mode, still walk the parse tree to detect semantic errors
 		// (type mismatches, undeclared identifiers, etc.) even in include files.
-		if (m_bCollectAllErrors)
+		if (m_bContinueOnError)
 		{
 			WalkParseTree(pNewReturnTree);
-			if (!m_vCapturedErrors.empty())
+			if (!m_vCompileErrors.empty())
 			{
 				return CleanUpAfterCompile(STRREF_CSCRIPTCOMPILER_ERROR_ALREADY_PRINTED, pNewReturnTree);
 			}
 		}
+
 		return CleanUpAfterCompile(0, pNewReturnTree);
 	}
 
@@ -109,6 +110,11 @@ int32_t CScriptCompiler::GenerateFinalCodeFromParseTree(CExoString sFileName)
 	else
 	{
 		OutputWalkTreeError(nReturnValue, NULL);
+	}
+
+	if (m_bContinueOnError && !m_vCompileErrors.empty())
+	{
+		return CleanUpAfterCompile(STRREF_CSCRIPTCOMPILER_ERROR_ALREADY_PRINTED, pNewReturnTree);
 	}
 
 	if (!m_sGraphvizPath.IsEmpty())
@@ -145,13 +151,6 @@ int32_t CScriptCompiler::GenerateFinalCodeFromParseTree(CExoString sFileName)
 			fprintf(f, "}\n");
 			fclose(f);
 		}
-	}
-
-	// In multi-error mode, if errors were accumulated during the tree walk,
-	// skip code output and clean up. The errors are already captured.
-	if (m_bCollectAllErrors && !m_vCapturedErrors.empty())
-	{
-		return CleanUpAfterCompile(STRREF_CSCRIPTCOMPILER_ERROR_ALREADY_PRINTED, pNewReturnTree);
 	}
 
 	if (nReturnValue < 0)
@@ -524,10 +523,8 @@ int32_t CScriptCompiler::InstallLoader()
 			}
 			else
 			{
-				// Neither are present.
-				if (m_bRequireEntryPoint == FALSE)
+				if (m_bCompileIncludes == TRUE)
 				{
-					// No entry point required - signal caller to skip code generation.
 					return 1;
 				}
 				// Otherwise we're going to error just as
@@ -542,9 +539,8 @@ int32_t CScriptCompiler::InstallLoader()
 		nMainIdentifier = GetIdentifierByName("main");
 		if (nMainIdentifier < 0)
 		{
-			if (m_bRequireEntryPoint == FALSE)
+			if (m_bCompileIncludes == TRUE)
 			{
-				// No entry point required - signal caller to skip code generation.
 				return 1;
 			}
 			return STRREF_CSCRIPTCOMPILER_ERROR_NO_FUNCTION_MAIN_IN_SCRIPT;
@@ -568,9 +564,8 @@ int32_t CScriptCompiler::InstallLoader()
 		nMainIdentifier = GetIdentifierByName("StartingConditional");
 		if (nMainIdentifier < 0)
 		{
-			if (m_bRequireEntryPoint == FALSE)
+			if (m_bCompileIncludes == TRUE)
 			{
-				// No entry point required - signal caller to skip code generation.
 				return 1;
 			}
 			return STRREF_CSCRIPTCOMPILER_ERROR_NO_FUNCTION_INTSC_IN_SCRIPT;
@@ -6351,22 +6346,22 @@ int32_t CScriptCompiler::WalkParseTree(CScriptParseTreeNode *pNode)
 {
 	if (pNode != NULL)
 	{
-		//INT bPrinted = 0;
-
-
 		int nReturnCode;
+		auto continueWalk = [this, &nReturnCode]() {
+			return nReturnCode == 0 || m_bContinueOnError;
+		};
 
 		ConstantFoldNode(pNode);
-		nReturnCode = PreVisitGenerateCode(pNode);
 
-		if (nReturnCode == 0)
+		nReturnCode = PreVisitGenerateCode(pNode);
+		if (continueWalk())
 		{
 			pNode->pLeft = TrimParseTree(pNode->pLeft);
 
 			// In multi-error mode, when walking a FUNCTIONAL_UNIT (top-level list node),
 			// save state before walking the left child (a function). If it errors,
 			// roll back state and continue to the right child (next function).
-			if (m_bCollectAllErrors &&
+			if (m_bContinueOnError &&
 			    pNode->nOperation == CSCRIPTCOMPILER_OPERATION_FUNCTIONAL_UNIT)
 			{
 				int32_t savedOutputCodeLength = m_nOutputCodeLength;
@@ -6386,7 +6381,7 @@ int32_t CScriptCompiler::WalkParseTree(CScriptParseTreeNode *pNode)
 					m_nVarStackRecursionLevel = savedVarStackRecursionLevel;
 
 					// Continue to next function unless error limit reached.
-					if ((int32_t)m_vCapturedErrors.size() < m_nMaxCollectedErrors)
+					if ((int32_t)m_vCompileErrors.size() < GetMaxCompileErrors())
 					{
 						nReturnCode = 0;
 					}
@@ -6398,19 +6393,19 @@ int32_t CScriptCompiler::WalkParseTree(CScriptParseTreeNode *pNode)
 			}
 		}
 
-		if (nReturnCode == 0)
+		if (continueWalk())
 		{
 			ConstantFoldNode(pNode);
 			nReturnCode = InVisitGenerateCode(pNode);
 		}
 
-		if (nReturnCode == 0)
+		if (continueWalk())
 		{
 			pNode->pRight = TrimParseTree(pNode->pRight);
 			nReturnCode = WalkParseTree(pNode->pRight);
 		}
 
-		if (nReturnCode == 0)
+		if (continueWalk())
 		{
 			ConstantFoldNode(pNode);
 			nReturnCode = PostVisitGenerateCode(pNode);

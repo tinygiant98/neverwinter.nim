@@ -7,7 +7,7 @@ const cppFlags = "-std=c++14"
 {.compile("native/scriptcompfinalcode.cpp", cppFlags).}
 {.compile("compilerapi.cpp", cppFlags).}
 
-import std/[tables, strutils, logging, enumutils, setutils]
+import std/[strutils, logging, enumutils]
 
 import neverwinter/[resman, restype]
 
@@ -70,12 +70,11 @@ proc scriptCompApiInitCompiler(
 ) {.importc.}
 
 proc scriptCompApiCompileFile(instance: CScriptCompiler, fn: cstring): tuple[code: int32, str: cstring] {.importc.}
-
 proc scriptCompApiDeliverFile(instance: CScriptCompiler, data: cstring, size: csize_t) {.importc.}
 
-proc scriptCompApiSetCollectAllErrors(instance: CScriptCompiler, state: bool) {.importc.}
-proc scriptCompApiGetCollectedErrorCount(instance: CScriptCompiler): int32 {.importc.}
-proc scriptCompApiGetCollectedError(instance: CScriptCompiler, index: int32): tuple[code: int32, str: cstring] {.importc.}
+proc scriptCompApiSetMaxCompileErrors(instance: CScriptCompiler, state: int32) {.importc.}
+proc scriptCompApiGetCompileErrorCount(instance: CScriptCompiler): int32 {.importc.}
+proc scriptCompApiGetCompileError(instance: CScriptCompiler, index: int32): tuple[code: int32, str: cstring] {.importc.}
 
 # Since the C level API calls back for each invocation, we need to cache the
 # currently-calling compiler instance here. This makes all procs threadsafe, as long
@@ -210,11 +209,11 @@ proc compileFile*(instance: ScriptCompiler, fn: string): CompileResult =
   result.str  = strip $(q.str)
 
   # Populate collected errors when multi-error mode is active
-  let errorCount = scriptCompApiGetCollectedErrorCount(instance.compiler)
+  let errorCount = scriptCompApiGetCompileErrorCount(instance.compiler)
   if errorCount > 0:
     result.errors = newSeq[CompileError](errorCount)
     for i in 0..<errorCount:
-      let e = scriptCompApiGetCollectedError(instance.compiler, i.int32)
+      let e = scriptCompApiGetCompileError(instance.compiler, i.int32)
       result.errors[i] = (code: e.code * -1, str: strip $(e.str))
 
 proc scriptCompApiGetOptimizationFlags(instance: CScriptCompiler): uint32 {.importc.}
@@ -236,16 +235,13 @@ proc scriptCompApiSetGenerateDebuggerOutput(instance: CScriptCompiler, state: ui
 proc setGenerateDebuggerOutput*(instance: ScriptCompiler, state: bool) =
   scriptCompApiSetGenerateDebuggerOutput(instance.compiler, if state: 1 else: 0)
 
-proc scriptCompApiSetRequireEntryPoint(instance: CScriptCompiler, state: uint32) {.importc.}
+proc scriptCompApiSetCompileIncludes(instance: CScriptCompiler, state: uint32) {.importc.}
 
-proc setRequireEntryPoint*(instance: ScriptCompiler, required: bool) =
+proc setCompileIncludes*(instance: ScriptCompiler, required: bool) =
   ## Set whether an entry point (void main or int StartingConditional) is required.
   ## When set to false, scripts without entry points can be compiled for validation purposes.
   ## This is useful for validating include files.
-  scriptCompApiSetRequireEntryPoint(instance.compiler, if required: 1 else: 0)
+  scriptCompApiSetCompileIncludes(instance.compiler, if required: 1 else: 0)
 
-proc setCollectAllErrors*(instance: ScriptCompiler, state: bool) =
-  ## Enable or disable multi-error collection mode.
-  ## When enabled, the compiler will attempt to recover from parse errors and
-  ## continue compiling to collect additional errors.
-  scriptCompApiSetCollectAllErrors(instance.compiler, state)
+proc SetMaxCompileErrors*(instance: ScriptCompiler, nErrors: int32) =
+  scriptCompApiSetMaxCompileErrors(instance.compiler, nErrors)

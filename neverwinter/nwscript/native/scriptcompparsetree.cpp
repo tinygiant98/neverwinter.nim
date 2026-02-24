@@ -4470,7 +4470,7 @@ int32_t CScriptCompiler::PrintParseSourceError(int32_t nParsingError)
 
 	// In multi-error mode, don't tear down the compiler state.
 	// Return a positive sentinel value so ParseSource() can recover and continue.
-	if (m_bCollectAllErrors)
+	if (m_bContinueOnError)
 	{
 		m_sParserErrorExtraInfo = "";
 		return 1; // Positive: signals ParseSource to recover
@@ -4602,10 +4602,10 @@ int32_t CScriptCompiler::ParseSource(const char *pScript, int32_t nScriptLength)
 
 			// In multi-error mode, PrintParseSourceError returns positive (1) to signal recovery.
 			// We skip forward to a synchronization point and reset the parser state.
-			if (m_bCollectAllErrors && nErrorResult > 0)
+			if (m_bContinueOnError && nErrorResult > 0)
 			{
 				// Check if we've hit the error limit
-				if ((int32_t)m_vCapturedErrors.size() >= m_nMaxCollectedErrors)
+				if ((int32_t)m_vCompileErrors.size() >= GetMaxCompileErrors())
 				{
 					return STRREF_CSCRIPTCOMPILER_ERROR_ALREADY_PRINTED;
 				}
@@ -4668,56 +4668,51 @@ int32_t CScriptCompiler::ParseSource(const char *pScript, int32_t nScriptLength)
 					++i;
 				}
 
-				// --- Save completed function trees before recovery destroys the stack ---
-				if (m_bCollectAllErrors)
+				// The SR stack contains a ladder of FUNCTIONAL_UNIT nodes
+				// from the recursive PROGRAM grammar. Each FU with a non-NULL
+				// pLeft has a completed function body. Collect these and chain
+				// them via pRight links for later semantic analysis.
+				CScriptParseTreeNode *pChainHead = NULL;
+				CScriptParseTreeNode *pChainTail = NULL;
+
+				for (int32_t idx = 0; idx <= m_nSRStackStates; idx++)
 				{
-					// The SR stack contains a ladder of FUNCTIONAL_UNIT nodes
-					// from the recursive PROGRAM grammar. Each FU with a non-NULL
-					// pLeft has a completed function body. Collect these and chain
-					// them via pRight links for later semantic analysis.
-					CScriptParseTreeNode *pChainHead = NULL;
-					CScriptParseTreeNode *pChainTail = NULL;
-
-					for (int32_t idx = 0; idx <= m_nSRStackStates; idx++)
+					CScriptParseTreeNode *p = m_pSRStack[idx].pCurrentTree;
+					if (p != NULL &&
+						p->nOperation == CSCRIPTCOMPILER_OPERATION_FUNCTIONAL_UNIT &&
+						p->pLeft != NULL)
 					{
-						CScriptParseTreeNode *p = m_pSRStack[idx].pCurrentTree;
-						if (p != NULL &&
-						    p->nOperation == CSCRIPTCOMPILER_OPERATION_FUNCTIONAL_UNIT &&
-						    p->pLeft != NULL)
-						{
-							// Detach from stack so DeleteCompileStack won't Clean() it
-							m_pSRStack[idx].pCurrentTree = NULL;
-							p->pRight = NULL;
+						// Detach from stack so DeleteCompileStack won't Clean() it
+						m_pSRStack[idx].pCurrentTree = NULL;
+						p->pRight = NULL;
 
-							if (pChainHead == NULL)
-							{
-								pChainHead = p;
-								pChainTail = p;
-							}
-							else
-							{
-								pChainTail->pRight = p;
-								pChainTail = p;
-							}
-						}
-					}
-
-					// Append collected chain to the saved tree accumulator
-					if (pChainHead != NULL)
-					{
-						if (m_pSavedParseTree == NULL)
+						if (pChainHead == NULL)
 						{
-							m_pSavedParseTree = pChainHead;
+							pChainHead = p;
+							pChainTail = p;
 						}
 						else
 						{
-							CScriptParseTreeNode *pEnd = m_pSavedParseTree;
-							while (pEnd->pRight) pEnd = pEnd->pRight;
-							pEnd->pRight = pChainHead;
+							pChainTail->pRight = p;
+							pChainTail = p;
 						}
 					}
 				}
-				// --- End save ---
+
+				// Append collected chain to the saved tree accumulator
+				if (pChainHead != NULL)
+				{
+					if (m_pSavedParseTree == NULL)
+					{
+						m_pSavedParseTree = pChainHead;
+					}
+					else
+					{
+						CScriptParseTreeNode *pEnd = m_pSavedParseTree;
+						while (pEnd->pRight) pEnd = pEnd->pRight;
+						pEnd->pRight = pChainHead;
+					}
+				}
 
 				// Reset the parser state to top-level context
 				TokenInitialize();
@@ -4728,7 +4723,6 @@ int32_t CScriptCompiler::ParseSource(const char *pScript, int32_t nScriptLength)
 				continue;
 			}
 
-			// Normal mode: return the error immediately
 			return nErrorResult;
 		}
 
@@ -4773,7 +4767,7 @@ int32_t CScriptCompiler::ParseSource(const char *pScript, int32_t nScriptLength)
 
 	// In multi-error mode, if we've already collected errors, don't try to parse EOF
 	// as the parser state may not be in a valid terminal state after recovery.
-	if (m_bCollectAllErrors && !m_vCapturedErrors.empty())
+	if (m_bContinueOnError && !m_vCompileErrors.empty())
 	{
 		// Save any post-recovery parsed functions from the stack.
 		// After error recovery, the parser may have successfully parsed

@@ -41,6 +41,8 @@ class CScriptCompilerIdentifierHashTableEntry;
 #define CSCRIPTCOMPILER_INCLUDE_LEVELS       16
 #define CSCRIPTCOMPILER_MAX_INCLUDE_LEVELS   200   // gcc also defaults to 200.
 #define CSCRIPTCOMPILER_MAX_RUNTIME_VARS     8192
+#define CSCRIPTCOMPILER_ERRORS               1
+#define CSCRIPTCOMPILER_MAX_ERRORS   		 1000
 
 #define CSCRIPTCOMPILERIDLISTENTRY_MAX_PARAMETERS 32
 
@@ -249,7 +251,7 @@ public:
 	///////////////////////////////////////////////////////////////////////
 
 	///////////////////////////////////////////////////////////////////////
-	void SetRequireEntryPoint(BOOL bValue);
+	void setCompileIncludes(BOOL bValue);
 	//---------------------------------------------------------------------
 	// Desc.: This routine will set whether an entry point (void main or
 	//        int StartingConditional) is required for compilation.
@@ -502,7 +504,7 @@ private:
 	BOOL m_bCompileConditionalFile;
 	BOOL m_bOldCompileConditionalFile;
 	BOOL m_bCompileConditionalOrMain;
-	BOOL m_bRequireEntryPoint;
+	BOOL m_bCompileIncludes;
 	CExoString m_sLanguageSource;
 	CExoString m_sOutputAlias;
 	CExoString m_sGraphvizPath;
@@ -547,7 +549,6 @@ private:
 	int32_t GenerateIdentifierList();
 	int32_t AddUserDefinedIdentifier(CScriptParseTreeNode *pFunctionDeclaration, BOOL bFunctionImplementation);
 	void ClearUserDefinedIdentifiers();
-
 
 	// A stack of includes.
 	int32_t m_nCompileFileLevel;
@@ -706,20 +707,25 @@ private:
 	CExoString  m_sCapturedError;
     STRREF      m_nCapturedErrorStrRef;
 
-	// Multi-error collection support.
-	// When m_bCollectAllErrors is TRUE, errors are accumulated into vectors
-	// instead of stopping at the first error. The parser will attempt to
-	// recover and continue parsing after each error.
-	BOOL m_bCollectAllErrors;
-	int32_t m_nMaxCollectedErrors;
-	std::vector<CExoString> m_vCapturedErrors;
-	std::vector<STRREF> m_vnCapturedErrorStrRefs;
-	CScriptParseTreeNode *m_pSavedParseTree;  // Completed function trees saved before error recovery
+	BOOL m_bContinueOnError;
+	int32_t m_nErrors;
+
+	struct CompileError {
+		CExoString error;
+		STRREF strRef;
+	};
+
+	std::vector<CompileError> m_vCompileErrors;
+	CScriptParseTreeNode *m_pSavedParseTree;
 
 public:
-	void SetCollectAllErrors(BOOL bValue) { m_bCollectAllErrors = bValue; }
-	BOOL GetCollectAllErrors() const { return m_bCollectAllErrors; }
-	int32_t GetCollectedErrorCount() const { return (int32_t)m_vCapturedErrors.size(); }
-	const CExoString& GetCollectedError(int32_t index) const { EXOASSERT(index >= 0 && index < (int32_t)m_vCapturedErrors.size()); return m_vCapturedErrors[index]; }
-	STRREF GetCollectedErrorStrRef(int32_t index) const { EXOASSERT(index >= 0 && index < (int32_t)m_vnCapturedErrorStrRefs.size()); return m_vnCapturedErrorStrRefs[index]; }
+	void SetMaxCompileErrors(int32_t nErrors) {
+		m_nErrors = std::min(nErrors, CSCRIPTCOMPILER_MAX_ERRORS);
+		m_bContinueOnError = m_nErrors > 1;
+	}
+
+	int32_t GetMaxCompileErrors() const { return std::min(m_nErrors, CSCRIPTCOMPILER_MAX_ERRORS); }
+	int32_t GetCompileErrorCount() const { return (int32_t)m_vCompileErrors.size(); }
+	const CExoString& GetCompileError(int32_t index) const { EXOASSERT(index >= 0 && index < (int32_t)m_vCompileErrors.size()); return m_vCompileErrors[index].error; }
+	STRREF GetCompileErrorStrRef(int32_t index) const { EXOASSERT(index >= 0 && index < (int32_t)m_vCompileErrors.size()); return m_vCompileErrors[index].strRef; }
 };

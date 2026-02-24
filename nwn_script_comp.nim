@@ -31,7 +31,7 @@ Usage:
   --follow-symlinks           Follow symlinks when compiling recursively.
 
   -g                          Write debug symbol files (NDB).
-  -y                          Continue processing input files even on error.
+  -y N                        Continue processing input files even on error. [default: 1000]
   -j N                        Parallel execution (default: all CPUs).
 
   -O N                        Optimisation levels [default: 1]
@@ -49,13 +49,9 @@ Usage:
   -s                          Simulate: Compile, but write no file.
                               Use --verbose to see what would be written.
 
-  -n --no-entry-point         Do not require an entry point (void main or
-                              int StartingConditional). Useful for validating
-                              include files.
-
-  -E --all-errors             Collect and report all errors per file instead
-                              of stopping at the first error. Useful for IDEs
-                              and language servers.
+  -I                          Compile include files (files without void main or
+                              int StartingConditional). May cause repeat errors if
+                              specified with -c.
 
   --langspec NSS              Language spec to load [default: nwscript]
   --restype-src TYPE          ResType to use for source lookup [default: nss]
@@ -73,14 +69,14 @@ type
     simulate: bool
     debugSymbols: bool
     optFlags: set[OptimizationFlag]
-    continueOnError: bool
     parallel: Positive
     outDirectory: string
     maxIncludeDepth: 1..200
     followSymlinks: bool
     graphvizOut: string
-    requireEntryPoint: bool
-    collectAllErrors: bool
+    compileIncludes: bool
+    continueOnError: bool
+    maxErrors: 1..1000
 
   GlobalState = object
     successes, errors, skips: Atomic[uint]
@@ -123,11 +119,11 @@ globalState.params = Params(
   continueOnError: globalState.args["-y"].to_bool,
   parallel: (if globalState.args["-j"]: parseInt($globalState.args["-j"]) else: countProcessors()).Positive,
   outDirectory: if globalState.args["-d"]: ($globalState.args["-d"]) else: "",
-  maxIncludeDepth: parseInt($globalState.args["--max-include-depth"]),
+  maxIncludeDepth: min(max(parseInt($globalState.args["--max-include-depth"]), 1), 200),
   followSymlinks: globalState.args["--follow-symlinks"],
   graphvizOut: if globalState.args["--graphviz"]: ($globalState.args["--graphviz"]) else: "",
-  requireEntryPoint: not globalState.args["--no-entry-point"].to_bool,
-  collectAllErrors: globalState.args["--all-errors"].to_bool,
+  compileIncludes: globalState.args["-I"].to_bool,
+  maxErrors: min(max(parseInt($globalState.args["-y"]), 1), 1000)
 )
 
 if globalState.params.outDirectory != "" and not dirExists(globalState.params.outDirectory):
@@ -199,7 +195,7 @@ createThread(demandResRefThread) do ():
 # All of these run inside worker threads and only access TLS (via getThreadState()).
 
 proc resolveFile(fn: string, ty: ResType): string =
-  let r = newResRef($fn, ResType ty)
+  let r = newResRef($fn, ty)
   chDemandResRef.send((
     resRef: r,
     searchPath: getThreadState().currentRMSearchPath,
@@ -219,8 +215,8 @@ proc getThreadState(): ThreadState {.gcsafe.} =
     state.chDemandResRefResponse.open(maxItems=1)
     state.cNSS = newCompiler(params.langSpec, params.debugSymbols, resolveFile, params.maxIncludeDepth, params.graphvizOut)
     state.cNSS.setOptimizations(params.optFlags)
-    state.cNSS.setRequireEntryPoint(params.requireEntryPoint)
-    state.cNSS.setCollectAllErrors(params.collectAllErrors)
+    state.cNSS.setCompileIncludes(params.compileIncludes)
+    state.cNSS.setMaxCompileErrors(params.maxErrors)
   state
 
 proc doCompile(num, total: Positive, p: string, overrideOutPath: string = "") {.gcsafe.} =
@@ -276,29 +272,14 @@ proc doCompile(num, total: Positive, p: string, overrideOutPath: string = "") {.
       else:
         atomicInc globalState.errors
 
-        if params.collectAllErrors and ret.errors.len > 0:
-          # Multi-error mode: print each collected error as a separate log line
+        if ret.errors.len > 0:
           for idx, e in ret.errors:
-            if idx == 0:
-              if params.continueOnError:
-                error prefix, e.str, timingPostfix()
-              else:
-                fatal prefix, e.str, timingPostfix()
-            else:
-              if params.continueOnError:
-                error prefix, e.str
-              else:
-                fatal prefix, e.str
-
+            error prefix, e.str, timingPostfix()
+            if idx == 0 and not params.continueOnError:
+              break;
+            
           if not params.continueOnError:
             quit(1)
-        elif params.continueOnError:
-          error prefix, ret.str, timingPostfix()
-        else:
-          fatal prefix, ret.str, timingPostfix()
-          # This might not be so safe in conjunction with the threadpool being loaded
-          # We'll see if it starts crashing ..
-          quit(1)
 
   else: discard
 
